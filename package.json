@@ -1,0 +1,23 @@
+{
+  "name": "@aynumosir/ainu-mcp",
+  "private": false,
+  "version": "0.0.1",
+  "main": "index.js",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {},
+  "author": "",
+  "license": "MIT",
+  "description": "",
+  "type": "module",
+  "dependencies": {
+    "@huggingface/transformers": "^3.4.1",
+    "@modelcontextprotocol/sdk": "^1.8.0"
+  },
+  "files": [
+    "index.js",
+    "README.md",
+    "LICENSE"
+  ]
+}
