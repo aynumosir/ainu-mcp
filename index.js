@@ -19,7 +19,7 @@ const translate = await pipeline(
 );
 
 server.tool(
-  "translate",
+  "ainu_translate",
   {
     sourceLang: z.enum(["Japanese", "Ainu"]),
     targetLang: z.enum(["Japanese", "Ainu"]),
