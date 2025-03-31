@@ -35,7 +35,7 @@ server.tool(
     const translation = response[0].generated_text;
 
     return {
-      contents: [
+      content: [
         {
           type: "text",
           text: translation,
