@@ -1,7 +1,7 @@
 {
   "name": "@aynumosir/ainu-mcp",
   "private": false,
-  "version": "0.0.7",
+  "version": "0.0.8",
   "bin": {
     "ainu-mcp": "index.js"
   },
@@ -15,7 +15,8 @@
   "type": "module",
   "dependencies": {
     "@huggingface/transformers": "^3.4.1",
-    "@modelcontextprotocol/sdk": "^1.8.0"
+    "@modelcontextprotocol/sdk": "^1.8.0",
+    "outdent": "^0.8.0"
   },
   "files": [
     "index.js",
