@@ -8,6 +8,16 @@
     "enabled": true
   },
 
+  // Custom domain — aynu.org is on this Cloudflare account, so wrangler creates
+  // the DNS record + cert for mcp.aynu.org on deploy. The GitHub App callback
+  // (https://mcp.aynu.org/callback) and the OAuth issuer both resolve here.
+  "routes": [
+    {
+      "pattern": "mcp.aynu.org",
+      "custom_domain": true
+    }
+  ],
+
   // The MCP server is a SQLite-backed Durable Object (free-tier eligible).
   "durable_objects": {
     "bindings": [
@@ -29,7 +39,7 @@
   "kv_namespaces": [
     {
       "binding": "OAUTH_KV",
-      "id": "<REPLACE_WITH_KV_NAMESPACE_ID>"
+      "id": "ad96bba28e494d2d911fc7bba6cb0e4f"
     }
   ],
 
@@ -39,7 +49,7 @@
     {
       "binding": "DB",
       "database_name": "ainu-mcp",
-      "database_id": "<REPLACE_WITH_D1_DATABASE_ID>",
+      "database_id": "eece9bfb-0c22-4a80-bc8b-56237a356544",
       "migrations_dir": "migrations"
     }
   ],
@@ -49,9 +59,9 @@
   "r2_buckets": [
     {
       "binding": "SITE_CACHE",
-      // Replace with the EXISTING itak.aynu.org cache bucket (the one the
-      // website reads table.json/sheets.json from).
-      "bucket_name": "ainu-glossary-cache"
+      // The existing itak.aynu.org cache bucket (the site reads table.json /
+      // sheets.json from here). Confirm this is the bucket your site reads.
+      "bucket_name": "ainu-glossary"
     }
   ],
 
