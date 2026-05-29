@@ -11,6 +11,7 @@
 import { Hono } from "hono";
 import type { AuthRequest, OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import type { Env, Props } from "./types.js";
+import { LANDING_HTML, LLMS_TXT } from "./landing.js";
 
 const GITHUB_AUTHORIZE = "https://github.com/login/oauth/authorize";
 const GITHUB_TOKEN = "https://github.com/login/oauth/access_token";
@@ -21,6 +22,10 @@ const GITHUB_TOKEN = "https://github.com/login/oauth/access_token";
 const SCOPES = "read:user read:org user:email";
 
 const app = new Hono<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>();
+
+// Public pages (everything else here is the OAuth flow).
+app.get("/", (c) => c.html(LANDING_HTML));
+app.get("/llms.txt", (c) => c.text(LLMS_TXT));
 
 function encodeState(info: AuthRequest): string {
   return btoa(JSON.stringify(info)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
