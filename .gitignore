@@ -13,3 +13,7 @@ wheels/
 .env
 .env.local
 *.service-account.json
+
+# Wrangler local state
+.wrangler/
+.claude/

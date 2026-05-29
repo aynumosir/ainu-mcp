@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ainu": {
+      "command": "uv",
+      "args": ["run", "ainu-mcp"]
+    }
+  }
+}

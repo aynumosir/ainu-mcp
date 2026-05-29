@@ -47,7 +47,7 @@ MAX_STMT_BYTES = 90_000
 # 35 KB leaves headroom for quote-escaping + the INSERT/UPDATE prefix.
 TEXT_CHUNK = 35_000
 GRAMMAR_OVERLAP = 200  # overlap (chars) between grammar chunks to avoid boundary misses
-# Rows per chunk file (keeps a single `wrangler d1 import` near the Free-plan
+# Rows per chunk file (keeps a single `wrangler d1 execute` near the Free-plan
 # 100k-writes/day ceiling so the seed can be applied incrementally).
 CHUNK_ROWS = 50_000
 # Vocabulary-gap candidates are stored down to this corpus frequency so the
@@ -403,7 +403,7 @@ def main() -> None:
         "# (~195k rows). dict_entries_* MUST all be applied before dict_fts_*.\n"
         "# Either spread these chunks across several days, or enable Workers Paid\n"
         "# for the seed window and downgrade afterwards (runtime is free either way).\n\n"
-        + "\n".join(f"wrangler d1 import ainu-mcp --remote --file=seed/data/{f}" for f in manifest)
+        + "\n".join(f"wrangler d1 execute ainu-mcp --remote --file=seed/data/{f}" for f in manifest)
         + "\n",
         encoding="utf-8",
     )
