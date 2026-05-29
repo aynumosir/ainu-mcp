@@ -14,7 +14,10 @@ import type { Env, Props } from "./types.js";
 
 const GITHUB_AUTHORIZE = "https://github.com/login/oauth/authorize";
 const GITHUB_TOKEN = "https://github.com/login/oauth/access_token";
-// read:org is required so we can read the user's (possibly private) org membership.
+// User-authorization (OAuth) flow — identical for a GitHub App and an OAuth App.
+// For a GitHub App the `scope` value is IGNORED (permissions are configured on
+// the App — grant Organization "Members: read"); the scope is kept here only for
+// OAuth-App compatibility. read:org reads the user's (possibly private) membership.
 const SCOPES = "read:user read:org user:email";
 
 const app = new Hono<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>();
@@ -93,10 +96,22 @@ app.get("/callback", async (c) => {
   const allowedUsers = c.env.ALLOWED_USERS.split(",").map((s) => s.trim()).filter(Boolean);
   let isOrgMember = allowedUsers.includes(user.login);
   if (!isOrgMember && c.env.ALLOWED_ORG) {
+    // Primary: the user's own membership record (state 'active' = a real member).
     const m = await gh(`/user/memberships/orgs/${c.env.ALLOWED_ORG}`);
     if (m.ok) {
       const membership = (await m.json()) as { state?: string };
       isOrgMember = membership.state === "active";
+    }
+    // Fallback: list the orgs visible to this token. A GitHub App user token can
+    // only see orgs where the App is installed, so this covers installs where the
+    // membership endpoint isn't reachable but the org is still listed.
+    if (!isOrgMember) {
+      const o = await gh(`/user/orgs`);
+      if (o.ok) {
+        const orgs = (await o.json()) as { login: string }[];
+        const want = c.env.ALLOWED_ORG.toLowerCase();
+        isOrgMember = orgs.some((org) => org.login.toLowerCase() === want);
+      }
     }
   }
 

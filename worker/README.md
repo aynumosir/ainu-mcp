@@ -37,13 +37,27 @@ Sheets / R2`.
 Prereqs: a Cloudflare account, `bun install` in this directory, and
 `bunx wrangler login`.
 
-### 1. Create a GitHub OAuth app
+### 1. Create a GitHub App
 
-GitHub → Settings → Developer settings → **OAuth Apps** → New.
-- Homepage URL: `https://ainu-mcp.<your-subdomain>.workers.dev`
-- **Authorization callback URL:** `https://ainu-mcp.<your-subdomain>.workers.dev/callback`
+GitHub's recommended path (fine-grained permissions, expiring tokens). GitHub →
+Settings → Developer settings → **GitHub Apps** → New GitHub App.
 
-Note the **Client ID** and generate a **Client secret**.
+- **Homepage URL:** `https://ainu-mcp.<your-subdomain>.workers.dev`
+- **Callback URL:** `https://ainu-mcp.<your-subdomain>.workers.dev/callback`
+  (also add `http://localhost:8788/callback` for local dev)
+- **Webhook:** uncheck **Active** (not used).
+- **Permissions → Organization → Members:** **Read-only** (to verify aynumosir membership).
+- **Permissions → Account → Email addresses:** Read-only (optional — for the user's email).
+- Create the app, note the **Client ID**, and generate a **client secret**.
+- **Install** the app on the **`aynumosir`** organization (org owner action). This
+  is what makes the membership check authoritative, including for members whose
+  org membership is private.
+
+The Worker uses GitHub's user-authorization (OAuth) flow, which is identical for a
+GitHub App and a classic OAuth App — so the same `GITHUB_CLIENT_ID` /
+`GITHUB_CLIENT_SECRET` secrets are used either way. (If you ever swap to an OAuth
+App instead, the only difference is you'd request the `read:org` scope rather than
+granting the App the Members permission; the code handles both.)
 
 ### 2. Create the Cloudflare resources
 

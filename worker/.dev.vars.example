@@ -1,9 +1,11 @@
 # Local dev secrets for `wrangler dev`. Copy to `.dev.vars` and fill in.
 # In production these are set with `wrangler secret put <NAME>` (see README.md).
 
-# ─── GitHub OAuth app (Settings → Developer settings → OAuth Apps) ───
-# Authorization callback URL must be:  https://<your-worker>.workers.dev/callback
-# (and http://localhost:8788/callback for local dev)
+# ─── GitHub App (Settings → Developer settings → GitHub Apps) ───
+# Callback URL must be:  https://<your-worker>.workers.dev/callback
+# (and http://localhost:8788/callback for local dev). Grant the App the
+# Organization "Members: read" permission and install it on the aynumosir org.
+# Client ID + a generated client secret of the GitHub App:
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 
