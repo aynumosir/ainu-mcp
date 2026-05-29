@@ -91,7 +91,7 @@ AINU_ROOT=/path/to/Ainu uv run python etl/build_d1.py
 cd worker
 bunx wrangler d1 migrations apply ainu-mcp --remote
 # then apply the seed files (see seed/MANIFEST.txt for the exact list/order):
-#   wrangler d1 import ainu-mcp --remote --file=seed/data/<file>.sql
+#   wrangler d1 execute ainu-mcp --remote --file=seed/data/<file>.sql
 ```
 
 > **Free-plan seed note:** the seed writes ~284k dictionary rows + ~284k FTS
