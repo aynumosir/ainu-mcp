@@ -1,0 +1,16 @@
+node_modules/
+.wrangler/
+dist/
+
+# Local secrets
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
+# Generated binding types
+worker-configuration.d.ts
+
+# Generated D1 seed (build with: uv run python etl/build_d1.py)
+seed/data/
+seed/MANIFEST.txt
+seed/*.db

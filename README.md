@@ -13,7 +13,21 @@ Claude Desktop, etc.):
   the above into a single structured response, so the model can draft a
   well-grounded glossary entry without round-tripping.
 
-## Setup
+## Two editions
+
+| | **Local** (this package) | **Hosted** ([`worker/`](worker/)) |
+| --- | --- | --- |
+| Runtime | Python, stdio MCP | Cloudflare Worker, Streamable-HTTP MCP |
+| Who runs it | a maintainer on their machine | anyone, over the network |
+| Auth | local env / credentials | **GitHub OAuth** (aynumosir org gates writes) |
+| Data | reads `AINU_ROOT` files directly | **D1** (FTS5 trigram), seeded by [`etl/build_d1.py`](etl/build_d1.py) |
+| Cost | — | **Cloudflare free tier** |
+
+Both expose the same 19 tools. The hosted edition is a faithful TypeScript port;
+see [`worker/README.md`](worker/README.md) for the deploy guide and
+[`etl/build_d1.py`](etl/build_d1.py) for how the Python loaders seed D1.
+
+## Setup (local edition)
 
 Requires **Python ≥ 3.13** and [`uv`](https://github.com/astral-sh/uv).
 

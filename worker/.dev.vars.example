@@ -1,0 +1,19 @@
+# Local dev secrets for `wrangler dev`. Copy to `.dev.vars` and fill in.
+# In production these are set with `wrangler secret put <NAME>` (see README.md).
+
+# ─── GitHub App (Settings → Developer settings → GitHub Apps) ───
+# Callback URL must be:  https://<your-worker>.workers.dev/callback
+# (and http://localhost:8788/callback for local dev). Grant the App the
+# Organization "Members: read" permission and install it on the aynumosir org.
+# Client ID + a generated client secret of the GitHub App:
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+
+# Random 32-byte hex string used to encrypt the OAuth approval cookie.
+# Generate with:  openssl rand -hex 32
+COOKIE_ENCRYPTION_KEY=
+
+# ─── Google service account (the existing ainu-glossary SA, Editor on sheet) ───
+GOOGLE_SA_CLIENT_EMAIL=ainu-glossary@ainu-glossary.iam.gserviceaccount.com
+# Paste the full PEM, including BEGIN/END lines. \n escapes are also accepted.
+GOOGLE_SA_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
