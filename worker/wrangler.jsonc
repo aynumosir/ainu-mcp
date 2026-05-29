@@ -1,0 +1,65 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ainu-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+
+  // The MCP server is a SQLite-backed Durable Object (free-tier eligible).
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MCP_OBJECT",
+        "class_name": "AinuMCP"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["AinuMCP"]
+    }
+  ],
+
+  // OAuth token/grant storage for @cloudflare/workers-oauth-provider.
+  // Create with: wrangler kv namespace create OAUTH_KV
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      "id": "<REPLACE_WITH_KV_NAMESPACE_ID>"
+    }
+  ],
+
+  // Reference data (corpus / dictionaries / grammar). Seeded by etl/build_d1.py.
+  // Create with: wrangler d1 create ainu-mcp
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ainu-mcp",
+      "database_id": "<REPLACE_WITH_D1_DATABASE_ID>",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // The itak.aynu.org site cache bucket (table.json / sheets.json).
+  // This is the SAME bucket the website reads from; binding replaces boto3.
+  "r2_buckets": [
+    {
+      "binding": "SITE_CACHE",
+      // Replace with the EXISTING itak.aynu.org cache bucket (the one the
+      // website reads table.json/sheets.json from).
+      "bucket_name": "ainu-glossary-cache"
+    }
+  ],
+
+  // Non-secret config. Secrets (GitHub OAuth app, Google service account,
+  // cookie key) are set via `wrangler secret put` — see worker/README.md.
+  "vars": {
+    "ALLOWED_ORG": "aynumosir",
+    "ALLOWED_USERS": "",
+    "GLOSSARY_SHEET_ID": "1zV0gl4TWV5fkf2r9i_1P1jmH_p7LOzbhZQgm7mPwDdE"
+  }
+}
