@@ -1,7 +1,8 @@
-# ainu-mcp
+# ainu-mcp-full
 
 A unified [Model Context Protocol](https://modelcontextprotocol.io) server for the
-Ainu-language toolchain. It lets an LLM (Claude Code, Claude Desktop, etc.):
+Ainu-language toolchain (`aynumosir/ainu-mcp-full`). It lets an LLM (Claude Code,
+Claude Desktop, etc.):
 
 - **Edit the [Itak-uoeroskip glossary](https://itak.aynu.org)** directly in its
   Google Sheets source of truth — search, add, and update entries from chat.
