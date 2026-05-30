@@ -8,13 +8,11 @@
 
 const ENDPOINT = "https://mcp.aynu.org/mcp";
 
-// `sik` (シㇰ, eye) brand mark — a vesica with a pupil. Reused as favicon.
-const SIK = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.8C16.2 6.6 16.2 17.4 12 22.2C7.8 17.4 7.8 6.6 12 1.8Z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="1.9" fill="currentColor"/></svg>`;
-
+// Favicon: a plain letter monogram in the family palette (no pictorial mark).
 const FAVICON =
   "data:image/svg+xml," +
   encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="5" fill="#f4ece0"/><path d="M12 2.6C15.8 7 15.8 17 12 21.4C8.2 17 8.2 7 12 2.6Z" fill="none" stroke="#1d3461" stroke-width="1.6"/><circle cx="12" cy="12" r="1.9" fill="#1d3461"/></svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="5" fill="#1d3461"/><text x="12" y="17.2" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-size="15" font-weight="700" fill="#f4ece0">a</text></svg>`,
   );
 
 // `moreu` (モレウ) flourish — a calm mirrored spiral divider.
@@ -127,7 +125,7 @@ section{padding:8px 0}
 .connect{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
 .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:22px;box-shadow:var(--sh-2)}
 .panel h3{font-size:1.1rem;margin-bottom:12px}
-pre{background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px;overflow-x:auto;margin:0;font-size:.86rem;line-height:1.5}
+pre{background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px;margin:0;font-size:.84rem;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
 .panel p{color:var(--soft);font-size:.92rem;margin:12px 0 0}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
@@ -150,7 +148,7 @@ footer .spacer{margin-left:auto}
 </head>
 <body>
 <header><div class="wrap bar">
-  <span class="brand">${SIK}<span>ainu-mcp</span></span>
+  <span class="brand"><span>ainu-mcp</span></span>
   <nav>
     <a class="navlink" href="#connect">Connect</a>
     <a class="navlink" href="#tools">Tools</a>
@@ -162,7 +160,7 @@ footer .spacer{margin-left:auto}
 <main>
 <div class="wrap">
   <section class="hero">
-    <span class="kicker">${SIK} Model Context Protocol server</span>
+    <span class="kicker">Model Context Protocol server</span>
     <h1>The Ainu-language toolchain,<br>for your AI.</h1>
     <p class="lede">Corpus, dictionaries, grammar, script conversion, and the
       <span class="kana">イタㇰ</span> Itak-uoeroskip glossary — one MCP endpoint your
@@ -225,7 +223,7 @@ URL: ${ENDPOINT}</pre>
 </main>
 
 <footer><div class="wrap">
-  <span class="brand" style="font-size:1rem">${SIK}<span>ainu-mcp</span></span>
+  <span class="brand" style="font-size:1rem"><span>ainu-mcp</span></span>
   <a href="https://itak.aynu.org">itak.aynu.org</a>
   <a href="/llms.txt">llms.txt</a>
   <span class="spacer"></span>
