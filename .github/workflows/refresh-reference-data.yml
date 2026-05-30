@@ -7,8 +7,10 @@ name: Refresh D1 reference data
 #
 # Strategy: build the full seed first, VALIDATE it, and only then clear + reload
 # the live DB (stable database_id, no redeploy). A full rebuild is ~1.5M D1
-# row-writes (clear + reload), which exceeds the Free plan's 100k/day cap, so
-# this requires Workers Paid. See docs/REFRESHING-DATA.md for setup.
+# row-writes (clear + reload) — over the Free plan's *documented* 100k/day cap,
+# but in practice it runs on Free for $0 (the initial seed wrote ~1.35M rows in
+# 24h on Free and succeeded). See docs/REFRESHING-DATA.md, incl. what to do if
+# Cloudflare ever starts enforcing that cap.
 
 on:
   schedule:
@@ -118,7 +120,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       # ───── Reset + reload the live D1 in place. From here the DB is briefly
-      # being rewritten; on Workers Paid the ~1.5M writes are well within budget.
+      # being rewritten (~1.5M writes — runs on Free in practice; see header).
       - name: Reset + reseed D1 (in-place)
         working-directory: worker
         run: |

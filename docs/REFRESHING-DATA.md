@@ -29,10 +29,22 @@ Monthly (and on demand), it:
    Worker keeps reading the same DB with no redeploy.
 6. Sanity-checks row counts afterward.
 
-A full rebuild is **~1.5M D1 row-writes** (clear + reload). That exceeds the
-Free plan's 100k writes/day cap, so **Workers Paid is required** — the metered
-cost of a monthly reseed is effectively $0 (well within the 50M/month included),
-leaving only the ~$5/month plan base.
+### Cost: runs on the Free plan ($0)
+
+A full rebuild is **~1.5M D1 row-writes** (clear + reload). On paper that exceeds
+the Free plan's documented **100k rows-written/day** cap — but in practice it
+works on Free for **$0**: the initial 605 MB seed wrote **~1.35M rows in a single
+24h window on the Free plan and succeeded**, so D1 is evidently not hard-blocking
+bulk `wrangler d1 execute --file` imports at that cap. The monthly reseed is the
+same operation. Storage is fine too (605 MB < the 5 GB Free limit).
+
+> **Risk to know about.** 100k/day is still the *documented* Free limit, so
+> Cloudflare could begin enforcing it. The failure signal would be a reseed that
+> errors partway through the load — and because the reseed is in-place, that
+> would leave the live tables partially reloaded until the next successful run.
+> If that ever happens, either spread the load across days (the seed is already
+> chunked) or enable Workers Paid (~$5/mo; the metered reseed cost is still ~$0).
+> Until then, no plan change is needed.
 
 > **In-place reseed window.** While step 5 runs (a few minutes, monthly, at
 > ~03:30 JST), reference-data searches may return partial/empty results. The
@@ -42,12 +54,9 @@ leaving only the ~$5/month plan base.
 
 ## One-time setup
 
-### 1. Enable Workers Paid
+No plan change is needed — this runs on the Free plan (see *Cost* above).
 
-In the Cloudflare dashboard: **Workers & Pages → Plans → Workers Paid**. Without
-it the reseed will fail once the daily 100k-write cap is hit.
-
-### 2. Add three GitHub Actions secrets
+### Add three GitHub Actions secrets
 
 **Repo → Settings → Secrets and variables → Actions → New repository secret:**
 
@@ -57,7 +66,7 @@ it the reseed will fail once the daily 100k-write cap is hit.
 | `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID | Dashboard URL, or `wrangler whoami`. |
 | `DATA_REPOS_TOKEN` | A token that can **read** the three private data repos | A fine-grained PAT (Contents: Read on the three repos) or a GitHub App installation token. The default `GITHUB_TOKEN` can't reach other repos. |
 
-### 3. (Optional) Refresh on upstream push
+### (Optional) Refresh on upstream push
 
 To rebuild as soon as a data repo changes instead of waiting for the monthly
 run, add a tiny workflow to each upstream repo that fires a `repository_dispatch`
