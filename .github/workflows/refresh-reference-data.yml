@@ -1,0 +1,163 @@
+name: Refresh D1 reference data
+
+# Rebuilds the D1 reference data (corpus / dictionaries / grammar / vocab) from
+# the upstream aynumosir data repos and re-applies it to the live D1 database
+# in place. The glossary is NOT touched here — the MCP reads it live from Google
+# Sheets, so it is always current without a scheduler.
+#
+# Strategy: build the full seed first, VALIDATE it, and only then clear + reload
+# the live DB (stable database_id, no redeploy). A full rebuild is ~1.5M D1
+# row-writes (clear + reload) — over the Free plan's *documented* 100k/day cap,
+# but in practice it runs on Free for $0 (the initial seed wrote ~1.35M rows in
+# 24h on Free and succeeded). See docs/REFRESHING-DATA.md, incl. what to do if
+# Cloudflare ever starts enforcing that cap.
+
+on:
+  schedule:
+    # 18:30 UTC on the 1st of each month (~03:30 JST). Reference data from the
+    # academic source repos changes rarely, so monthly is plenty.
+    - cron: "30 18 1 * *"
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why are you running the refresh manually?"
+        required: false
+  # Let an upstream data repo trigger a refresh on push (optional — see docs).
+  repository_dispatch:
+    types: [upstream-data-changed]
+
+# Never let two reseeds clobber the same DB concurrently.
+concurrency:
+  group: refresh-d1
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      AINU_ROOT: ${{ github.workspace }}/_data
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      D1_DB: ainu-mcp
+    steps:
+      - name: Checkout ainu-mcp
+        uses: actions/checkout@v4
+
+      - name: Clone private data repos
+        env:
+          GH_TOKEN: ${{ secrets.DATA_REPOS_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$AINU_ROOT"
+          for r in ainu-corpora ainu-dictionaries ainu-grammar; do
+            echo "::group::clone $r"
+            git clone --depth 1 \
+              "https://x-access-token:${GH_TOKEN}@github.com/aynumosir/$r.git" \
+              "$AINU_ROOT/$r"
+            echo "::endgroup::"
+          done
+
+      - name: Set up Rust (corpus builder)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo + builder target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ env.AINU_ROOT }}/ainu-corpora/builder/target
+          key: corpora-builder-${{ runner.os }}-v1
+
+      - name: Build corpus data.jsonl
+        working-directory: ${{ env.AINU_ROOT }}/ainu-corpora/builder
+        run: cargo run --release -- ../texts > ../data.jsonl
+
+      - name: Set up uv (Python ETL)
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install Python deps
+        run: uv sync --frozen
+
+      - name: Build D1 seed
+        run: uv run python etl/build_d1.py
+
+      # ───── Safety gate: validate the freshly built data BEFORE touching prod.
+      # If the corpus build or ETL produced something implausibly small, abort
+      # here — the live DB is still fully intact at this point.
+      - name: Validate built seed
+        run: |
+          set -euo pipefail
+          corpus_bytes=$(stat -c%s "$AINU_ROOT/ainu-corpora/data.jsonl")
+          echo "corpus data.jsonl: $corpus_bytes bytes"
+          if [ "$corpus_bytes" -lt 50000000 ]; then
+            echo "::error::corpus data.jsonl is only $corpus_bytes bytes (<50MB) — aborting before touching prod"
+            exit 1
+          fi
+          test -s worker/seed/MANIFEST.txt
+          # Expect the big writers to be present.
+          ls worker/seed/data/corpus_0001.sql >/dev/null
+          ls worker/seed/data/dict_entries_0001.sql >/dev/null
+          ls worker/seed/data/dict_fts_0001.sql >/dev/null
+          seed_bytes=$(du -sb worker/seed/data | cut -f1)
+          echo "seed/data total: $seed_bytes bytes"
+          if [ "$seed_bytes" -lt 20000000 ]; then
+            echo "::error::seed/data is only $seed_bytes bytes (<20MB) — aborting before touching prod"
+            exit 1
+          fi
+
+      - name: Set up Bun (wrangler)
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install wrangler
+        working-directory: worker
+        run: bun install --frozen-lockfile
+
+      # ───── Reset + reload the live D1 in place. From here the DB is briefly
+      # being rewritten (~1.5M writes — runs on Free in practice; see header).
+      - name: Reset + reseed D1 (in-place)
+        working-directory: worker
+        run: |
+          set -euo pipefail
+          d1() { bunx wrangler d1 execute "$D1_DB" --remote --file="$1"; }
+
+          echo "::group::reset (clear all reference tables)"
+          d1 seed/reset.sql
+          echo "::endgroup::"
+
+          # Apply the seed files in the exact order the ETL recorded in MANIFEST
+          # (dict_entries MUST precede the dict_fts external-content rebuild). We
+          # parse only the filenames — not the command text — so the stale
+          # `d1 import` vs `d1 execute` wording in MANIFEST is irrelevant.
+          grep -oE 'seed/data/[A-Za-z0-9_./-]+\.sql' seed/MANIFEST.txt | while read -r f; do
+            echo "::group::load $f"
+            d1 "$f"
+            echo "::endgroup::"
+          done
+
+      - name: Post-reseed sanity check
+        working-directory: worker
+        run: |
+          set -euo pipefail
+          out=$(bunx wrangler d1 execute "$D1_DB" --remote --json --command \
+            "SELECT
+               (SELECT count(*) FROM corpus_fts)        AS corpus,
+               (SELECT count(*) FROM dict_entries)      AS dict_entries,
+               (SELECT count(*) FROM dictionaries)      AS dictionaries,
+               (SELECT count(*) FROM grammar_materials) AS grammar,
+               (SELECT count(*) FROM vocab_candidates)  AS vocab;")
+          echo "$out"
+          corpus=$(echo "$out" | grep -oE '"corpus"[: ]+[0-9]+' | grep -oE '[0-9]+')
+          dict=$(echo "$out" | grep -oE '"dict_entries"[: ]+[0-9]+' | grep -oE '[0-9]+')
+          echo "corpus=$corpus dict_entries=$dict"
+          if [ "${corpus:-0}" -lt 100000 ] || [ "${dict:-0}" -lt 100000 ]; then
+            echo "::error::post-reseed counts look wrong (corpus=$corpus dict=$dict) — investigate the live DB"
+            exit 1
+          fi
+          echo "✓ reseed complete and sane"
