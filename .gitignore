@@ -13,7 +13,16 @@ wheels/
 .env
 .env.local
 *.service-account.json
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
 
 # Wrangler local state
 .wrangler/
 .claude/
+
+# Generated D1 seed — derived from the PRIVATE data repos (corpus/dictionaries/
+# grammar). Built by etl/build_d1.py and applied by CI; never commit it, or the
+# private data would leak into this (public) repo.
+worker/seed/data/
+worker/seed/MANIFEST.txt
