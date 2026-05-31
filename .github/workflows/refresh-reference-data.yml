@@ -81,6 +81,10 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+          # Pinned here instead of a root .python-version file: that file makes
+          # Cloudflare Workers Builds detect + install Python on every Worker
+          # deploy (the Worker is JS-only and lives in worker/). See worker build logs.
+          python-version: "3.13"
 
       - name: Install Python deps
         run: uv sync --frozen
