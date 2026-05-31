@@ -252,6 +252,79 @@ URL: ${ENDPOINT}</pre>
 </body>
 </html>`;
 
+/**
+ * Branded error / status page — shared by the worker's human-facing routes
+ * (onError 500, notFound 404, and the OAuth-flow failure branches). Same visual
+ * language as the landing page (indigo-on-ecru, Shippori headings, `moreu`
+ * flourish, dark mode) but a single self-contained centred card. `detail` is
+ * caller-controlled copy and must already be safe/escaped — never interpolate
+ * raw user input or error stacks here.
+ */
+export function renderErrorPage(status: number, heading: string, detail: string): string {
+  return `<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${status} · ainu-mcp</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="${FAVICON}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;800&family=Inter:wght@400;500;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4ece0; --surface:#fbf6ee; --primary:#1d3461; --primary-ink:#fbf6ee;
+  --primary-edge:#122444; --accent:#9c2a2a; --text:#1f2430; --soft:#5a5346;
+  --faint:#908674; --border:#d8cbb8; --border-strong:#b59c79;
+  --sh-3:0 14px 30px rgba(58,44,32,.16);
+  --ff-display:'Shippori Mincho B1',serif; --ff-ui:'Inter',sans-serif;
+  --ff-mono:'IBM Plex Mono',ui-monospace,monospace; --r-lg:22px; --r-md:16px; --depth:4px;
+}
+@media (prefers-color-scheme:dark){:root[data-theme=auto]{
+  --bg:#14171f; --surface:#1b1f2a; --primary:#7da7d9; --primary-ink:#0e1118;
+  --primary-edge:#27374f; --accent:#e0857f; --text:#ece3d4; --soft:#b3a892;
+  --faint:#7e8597; --border:#3f4658; --border-strong:#525a6f;
+  --sh-3:0 14px 30px rgba(0,0,0,.5);
+}}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;
+  background:var(--bg);color:var(--text);font-family:var(--ff-ui);line-height:1.6;
+  -webkit-font-smoothing:antialiased}
+.card{max-width:460px;width:100%;text-align:center;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--sh-3);
+  padding:44px 38px 36px}
+.code{font-family:var(--ff-mono);font-size:.82rem;font-weight:500;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent);
+  background:color-mix(in srgb,var(--accent) 12%,transparent);
+  padding:6px 14px;border-radius:999px;display:inline-block}
+h1{font-family:var(--ff-display);font-weight:800;font-size:1.6rem;line-height:1.2;
+  margin:20px 0 0}
+p{color:var(--soft);margin:14px 0 0;font-size:1rem}
+.moreu{display:block;width:200px;height:24px;margin:26px auto 6px;color:var(--border-strong)}
+.moreu line{stroke:currentColor;stroke-width:1.5;opacity:.55}
+.moreu path{stroke:currentColor;stroke-width:1.6;fill:none}
+.moreu .sik-dot{fill:var(--primary)}
+.home{display:inline-block;margin-top:26px;font-family:var(--ff-ui);font-weight:800;
+  font-size:.95rem;color:var(--primary-ink);background:var(--primary);text-decoration:none;
+  border-radius:var(--r-md);padding:11px 20px;box-shadow:0 var(--depth) 0 var(--primary-edge);
+  transition:transform .12s,box-shadow .12s,filter .12s}
+.home:hover{filter:brightness(1.05)}
+.home:active{transform:translateY(var(--depth));box-shadow:0 0 0 var(--primary-edge)}
+</style>
+</head>
+<body>
+<main class="card">
+  <span class="code">${status} · ainu-mcp</span>
+  <h1>${heading}</h1>
+  <p>${detail}</p>
+  ${MOREU}
+  <a class="home" href="/">Back to ainu-mcp</a>
+</main>
+</body>
+</html>`;
+}
+
 export const LLMS_TXT = `# ainu-mcp
 
 > A Model Context Protocol (MCP) server for the Ainu language. One endpoint
