@@ -1,23 +1,19 @@
 [project]
 name = "ainu-mcp"
 version = "0.1.0"
-description = "Add your description here"
+description = "Python ETL that builds the D1 reference data for the hosted ainu-mcp Worker"
 authors = [
     { name = "mkpoli", email = "git@mkpo.li" }
 ]
 requires-python = ">=3.13"
+# Loaders used by etl/build_d1.py. The stdio MCP server was retired in favour of
+# the hosted Worker (worker/), so its deps (mcp[cli], ainconv, boto3) are gone.
 dependencies = [
-    "ainconv>=0.5",
-    "boto3>=1.35",
     "google-api-python-client>=2.150",
     "google-auth>=2.35",
-    "mcp[cli]>=1.2",
     "python-dotenv>=1.0",
     "pyyaml>=6",
 ]
-
-[project.scripts]
-ainu-mcp = "ainu_mcp:main"
 
 [build-system]
 requires = ["uv_build>=0.11.3,<0.12.0"]
