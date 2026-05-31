@@ -9,3 +9,18 @@ export function jsonResult(data: unknown) {
 export function errorResult(message: string) {
   return { content: [{ type: "text" as const, text: message }], isError: true };
 }
+
+/**
+ * Call a service-bound sibling Worker (e.g. mdb.aynu.org / db.aynu.org) and
+ * parse its JSON reply. The hostname is cosmetic — a service binding routes by
+ * binding, not host — but we keep the real domain for readable logs. Throws on
+ * a non-2xx so the caller can surface it via errorResult.
+ */
+export async function fetchJson(binding: Fetcher, url: string): Promise<unknown> {
+  const res = await binding.fetch(new Request(url));
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`upstream ${res.status} ${res.statusText}${body ? `: ${body.slice(0, 300)}` : ""}`);
+  }
+  return res.json();
+}
