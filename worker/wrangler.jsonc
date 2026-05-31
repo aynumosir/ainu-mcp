@@ -43,6 +43,14 @@
     }
   ],
 
+  // Service bindings to sibling Aynu.org Workers (same account). Worker-to-Worker
+  // calls — no public internet hop, no auth dance. The morpheme/lexeme and
+  // textual-sources tools proxy the read APIs these apps expose.
+  "services": [
+    { "binding": "MDB", "service": "ainu-mdb" },
+    { "binding": "SOURCES", "service": "ainu-sources" }
+  ],
+
   // Reference data (corpus / dictionaries / grammar). Seeded by etl/build_d1.py.
   // Create with: wrangler d1 create ainu-mcp
   "d1_databases": [

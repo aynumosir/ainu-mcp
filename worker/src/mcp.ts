@@ -17,6 +17,8 @@ import { registerGrammarTools } from "./tools/grammar.js";
 import { registerScriptTools } from "./tools/script.js";
 import { registerResearchTools } from "./tools/research.js";
 import { registerGlossaryReadTools, registerGlossaryWriteTools } from "./tools/glossary.js";
+import { registerMorphemeTools } from "./tools/morpheme.js";
+import { registerSourcesTools } from "./tools/sources.js";
 import { registerAuditTool } from "./tools/audit.js";
 import { registerGapsTool } from "./tools/gaps.js";
 import { registerSiteCacheTool } from "./tools/site-cache.js";
@@ -38,6 +40,8 @@ export class AinuMCP extends McpAgent<Env, unknown, Props> {
     registerScriptTools(this.server);
     registerResearchTools(this.server, env);
     registerGlossaryReadTools(this.server, env);
+    registerMorphemeTools(this.server, env);
+    registerSourcesTools(this.server, env);
 
     // ── Write + maintenance surface — aynumosir org members only ──
     // (props is undefined only if the OAuth layer is bypassed; treat as read-only.)
