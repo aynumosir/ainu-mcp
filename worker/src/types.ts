@@ -12,6 +12,11 @@ export interface Env {
   OAUTH_KV: KVNamespace;
   MCP_OBJECT: DurableObjectNamespace;
 
+  // Service bindings to sibling Aynu.org Workers (same account) — Worker-to-Worker,
+  // no public hop. Their apps own the data + logic; we proxy read endpoints.
+  MDB: Fetcher; // ainu-mdb — morpheme/lexeme explorer + decompose API (mdb.aynu.org)
+  SOURCES: Fetcher; // ainu-sources — textual sources database (db.aynu.org)
+
   // Plain vars
   ALLOWED_ORG: string; // GitHub org whose members get write/maintenance tools
   ALLOWED_USERS: string; // comma-separated GitHub logins granted the same, in addition to the org
