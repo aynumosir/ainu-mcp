@@ -11,7 +11,7 @@
 import { Hono } from "hono";
 import type { AuthRequest, OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import type { Env, Props } from "./types.js";
-import { LANDING_HTML, LLMS_TXT } from "./landing.js";
+import { LANDING_HTML, LLMS_TXT, renderErrorPage } from "./landing.js";
 
 const GITHUB_AUTHORIZE = "https://github.com/login/oauth/authorize";
 const GITHUB_TOKEN = "https://github.com/login/oauth/access_token";
@@ -22,6 +22,24 @@ const GITHUB_TOKEN = "https://github.com/login/oauth/access_token";
 const SCOPES = "read:user read:org user:email";
 
 const app = new Hono<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>();
+
+// Branded replacements for the Workers runtime's bare plaintext fallbacks.
+// notFound: any unmatched human-facing route. onError: any uncaught exception
+// (a thrown handler, an upstream GitHub fetch that rejects, …) — without this
+// the runtime returns a plain "Internal Server Error".
+app.notFound((c) =>
+  c.html(
+    renderErrorPage(404, "Page not found", "That path isn’t part of this server. The MCP endpoint lives at /mcp."),
+    404,
+  ),
+);
+app.onError((err, c) => {
+  console.error("Unhandled error:", err);
+  return c.html(
+    renderErrorPage(500, "Something went wrong", "An unexpected error occurred on our side. Please try again in a moment."),
+    500,
+  );
+});
 
 // Public pages (everything else here is the OAuth flow).
 app.get("/", (c) => c.html(LANDING_HTML));
@@ -36,7 +54,11 @@ function decodeState(raw: string): AuthRequest {
 
 app.get("/authorize", async (c) => {
   const oauthReqInfo = await c.env.OAUTH_PROVIDER.parseAuthRequest(c.req.raw);
-  if (!oauthReqInfo.clientId) return c.text("Invalid OAuth request", 400);
+  if (!oauthReqInfo.clientId)
+    return c.html(
+      renderErrorPage(400, "Invalid sign-in request", "This authorization request is missing or malformed. Start the connection again from your MCP client."),
+      400,
+    );
 
   const redirectUri = new URL("/callback", c.req.url).href;
   const u = new URL(GITHUB_AUTHORIZE);
@@ -50,15 +72,18 @@ app.get("/authorize", async (c) => {
 app.get("/callback", async (c) => {
   const code = c.req.query("code");
   const stateRaw = c.req.query("state");
-  if (!code || !stateRaw) return c.text("Missing code/state", 400);
+  const badRequest = (detail: string) => c.html(renderErrorPage(400, "Sign-in could not complete", detail), 400);
+  if (!code || !stateRaw)
+    return badRequest("GitHub didn’t return the expected authorization code. Start the connection again from your MCP client.");
 
   let oauthReqInfo: AuthRequest;
   try {
     oauthReqInfo = decodeState(stateRaw);
   } catch {
-    return c.text("Malformed state", 400);
+    return badRequest("The sign-in request expired or was tampered with. Start the connection again from your MCP client.");
   }
-  if (!oauthReqInfo.clientId) return c.text("Malformed state", 400);
+  if (!oauthReqInfo.clientId)
+    return badRequest("The sign-in request expired or was tampered with. Start the connection again from your MCP client.");
 
   // Exchange the GitHub code for a GitHub access token.
   const redirectUri = new URL("/callback", c.req.url).href;
@@ -74,7 +99,11 @@ app.get("/callback", async (c) => {
   });
   const tokenData = (await tokenResp.json()) as { access_token?: string; error?: string };
   const accessToken = tokenData.access_token;
-  if (!accessToken) return c.text(`GitHub OAuth failed: ${tokenData.error ?? "no access_token"}`, 401);
+  if (!accessToken)
+    return c.html(
+      renderErrorPage(401, "GitHub sign-in failed", "GitHub didn’t grant access. The link may have expired — start the connection again from your MCP client."),
+      401,
+    );
 
   const gh = (path: string) =>
     fetch(`https://api.github.com${path}`, {
@@ -86,7 +115,11 @@ app.get("/callback", async (c) => {
     });
 
   const userResp = await gh("/user");
-  if (!userResp.ok) return c.text("Failed to fetch GitHub user", 401);
+  if (!userResp.ok)
+    return c.html(
+      renderErrorPage(401, "Couldn’t reach your GitHub account", "We signed you in but couldn’t read your GitHub profile. Please try connecting again."),
+      401,
+    );
   const user = (await userResp.json()) as { login: string; name?: string };
 
   let email = "";
