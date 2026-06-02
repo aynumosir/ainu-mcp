@@ -1,7 +1,7 @@
-# ainu-mcp-full
+# ainu-mcp
 
 A hosted [Model Context Protocol](https://modelcontextprotocol.io) server for the
-Ainu-language toolchain (`aynumosir/ainu-mcp-full`). It lets an LLM (Claude Code,
+Ainu-language toolchain (`aynumosir/ainu-mcp`). It lets an LLM (Claude Code,
 Claude Desktop, etc.):
 
 - **Edit the [Itak-uoeroskip glossary](https://itak.aynu.org)** directly in its
