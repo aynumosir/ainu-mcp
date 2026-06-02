@@ -1,7 +1,9 @@
-# D1 seed
+# Reference-data seed (Turso)
 
 The actual seed SQL (`data/*.sql`, `MANIFEST.txt`) is **generated, not
-committed** — it's ~270 MB derived from the source data repos.
+committed** — it's ~270 MB derived from the source data repos. It is loaded into
+the **Turso** (libSQL) reference store via the batched loader
+(`../scripts/load-turso.mjs`).
 
 Build it from the repo root:
 
@@ -24,5 +26,6 @@ writes:
 - `data/meta.sql` — precomputed corpus stats + token totals
 - `MANIFEST.txt` — the exact apply order
 
-Apply order matters (dict_entries → dict_fts). See `MANIFEST.txt`, and the
-free-plan seed note in `../README.md`.
+Apply order matters (dict_entries → dict_fts) — `MANIFEST.txt` records it, and
+the loader applies files in the given order. See `../README.md` (§4) and
+`docs/REFRESHING-DATA.md` for the load commands.

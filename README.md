@@ -21,8 +21,8 @@ single MCP surface.)
 
 | Part | What it is |
 | --- | --- |
-| [`worker/`](worker/) | The MCP server: a Cloudflare Worker (Streamable-HTTP MCP) at **`mcp.aynu.org`**, GitHub-OAuth gated, reading a **D1** (FTS5 trigram) reference store. See [`worker/README.md`](worker/README.md) for the deploy guide. |
-| `src/ainu_mcp/` + [`etl/build_d1.py`](etl/build_d1.py) | The Python ETL: corpus / dictionary / grammar / glossary **loaders** that bake the reference data into the Worker's D1. Not a server. |
+| [`worker/`](worker/) | The MCP server: a Cloudflare Worker (Streamable-HTTP MCP) at **`mcp.aynu.org`**, GitHub-OAuth gated, reading a **Turso** (libSQL, FTS5 trigram) reference store. See [`worker/README.md`](worker/README.md) for the deploy guide. |
+| `src/ainu_mcp/` + [`etl/build_d1.py`](etl/build_d1.py) | The Python ETL: corpus / dictionary / grammar / glossary **loaders** that bake the reference data into the Worker's Turso DB. Not a server. |
 
 **Access model:** any GitHub user who authenticates gets the read/reference
 tools; members of the **`aynumosir`** org (or anyone in `ALLOWED_USERS`)
@@ -52,8 +52,8 @@ Or user-scoped — add the same block to `~/.claude.json` under `mcpServers`.
 
 ## Building / refreshing the reference data
 
-The corpus, dictionaries, and grammar tables in D1 are built by the Python ETL,
-which the Worker only reads. To rebuild the seed:
+The corpus, dictionaries, and grammar tables in Turso are built by the Python
+ETL, which the Worker only reads. To rebuild the seed:
 
 Requires **Python ≥ 3.13** and [`uv`](https://github.com/astral-sh/uv).
 
@@ -73,10 +73,10 @@ is public, so the ETL fetches it from GitHub automatically — no checkout neede
 A local `ainu-stopwords/ainu-stopwords.txt` under `AINU_ROOT`, if present, is
 used instead.)
 
-The seed is applied to D1 with `wrangler d1 execute` (see
+The seed is loaded into Turso with the batched libSQL loader (see
 [`docs/REFRESHING-DATA.md`](docs/REFRESHING-DATA.md)). A scheduled GitHub Action
 ([`refresh-reference-data.yml`](.github/workflows/refresh-reference-data.yml))
-rebuilds and reseeds D1 monthly. The live glossary is read straight from Google
+rebuilds and reseeds Turso monthly. The live glossary is read straight from Google
 Sheets, so glossary edits do not depend on this refresh.
 
 ## Tool surface

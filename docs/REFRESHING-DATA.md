@@ -1,13 +1,17 @@
-# Refreshing the D1 reference data
+# Refreshing the reference data
 
 The hosted MCP serves two kinds of data:
 
 | Data | Source at runtime | Freshness |
 | --- | --- | --- |
 | **Glossary** (`glossary_*`, `entry_research`) | **live Google Sheets** every call | always current — no scheduler needed |
-| **Corpus / dictionaries / grammar / vocab** | **D1** (`worker/migrations` + `worker/seed`) | a snapshot built by `etl/build_d1.py` |
+| **Corpus / dictionaries / grammar / frequency** | **Turso** (libSQL; schema in `worker/migrations`, data built into `worker/seed`) | a snapshot built by `etl/build_d1.py` |
 
-Only the D1 snapshot can go stale. It changes only when the upstream
+The reference store is **Turso** (libSQL) — it moved off Cloudflare D1 when the
+D1 Free-plan per-database size cap (~500 MB) blocked writes at ~615 MB. The
+Worker reads it through a libSQL shim (`worker/src/libsql.ts`).
+
+Only the Turso snapshot can go stale. It changes only when the upstream
 [`aynumosir/ainu-corpora`](https://github.com/aynumosir/ainu-corpora),
 [`aynumosir/ainu-dictionaries`](https://github.com/aynumosir/ainu-dictionaries),
 and [`aynumosir/ainu-grammar`](https://github.com/aynumosir/ainu-grammar) repos
@@ -25,45 +29,32 @@ Monthly (and on demand), it:
 4. **Validates** the built data (aborts if the corpus or seed is implausibly
    small — so a broken upstream build can never wipe the live DB).
 5. Clears the reference tables (`worker/seed/reset.sql`) and re-applies the
-   fresh seed **in place** — the `database_id` never changes, so the live
-   Worker keeps reading the same DB with no redeploy.
-6. Sanity-checks row counts afterward.
+   fresh seed **in place**, via the batched libSQL loader
+   (`worker/scripts/load-turso.mjs`) — the same Turso DB, so the live Worker
+   keeps reading it with no redeploy.
+6. The loader sanity-checks row counts afterward (aborts if they look wrong).
 
-### Cost: runs on the Free plan ($0)
-
-A full rebuild is **~1.5M D1 row-writes** (clear + reload). On paper that exceeds
-the Free plan's documented **100k rows-written/day** cap — but in practice it
-works on Free for **$0**: the initial 605 MB seed wrote **~1.35M rows in a single
-24h window on the Free plan and succeeded**, so D1 is evidently not hard-blocking
-bulk `wrangler d1 execute --file` imports at that cap. The monthly reseed is the
-same operation. Storage is fine too (605 MB < the 5 GB Free limit).
-
-> **Risk to know about.** 100k/day is still the *documented* Free limit, so
-> Cloudflare could begin enforcing it. The failure signal would be a reseed that
-> errors partway through the load — and because the reseed is in-place, that
-> would leave the live tables partially reloaded until the next successful run.
-> If that ever happens, either spread the load across days (the seed is already
-> chunked) or enable Workers Paid (~$5/mo; the metered reseed cost is still ~$0).
-> Until then, no plan change is needed.
+> **Why a loader, not `turso db shell`?** `turso db shell < bigfile.sql` drops
+> its HTTP stream on the large seed files (`error 404: stream not found`), and
+> `turso db create --from-file` 502s on the ~600 MB `.db`. The loader executes
+> quote-aware statements in batched transactions, which is robust. FTS5 `trigram`
+> works on Turso.
 
 > **In-place reseed window.** While step 5 runs (a few minutes, monthly, at
 > ~03:30 JST), reference-data searches may return partial/empty results. The
 > glossary is unaffected (it's live from Sheets). If a run fails midway, just
-> re-run it — the reset+reload is idempotent and brings the DB back to a clean
-> state.
+> re-run it — reset+reload brings the DB back to a clean state.
 
 ## One-time setup
 
-No plan change is needed — this runs on the Free plan (see *Cost* above).
-
-### Add three GitHub Actions secrets
+### Add the GitHub Actions secrets
 
 **Repo → Settings → Secrets and variables → Actions → New repository secret:**
 
 | Secret | Value | Notes |
 | --- | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | A Cloudflare API token | Permissions: **Account → D1 → Edit**. Nothing else is needed (no Workers deploy — the reseed is in-place). |
-| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID | Dashboard URL, or `wrangler whoami`. |
+| `TURSO_DATABASE_URL` | The `libsql://ainu-mcp-…turso.io` URL | `turso db show ainu-mcp --url`. |
+| `TURSO_AUTH_TOKEN` | A **write** token for the Turso DB | `turso db tokens create ainu-mcp` (the Worker itself uses a separate **read-only** token). |
 | `DATA_REPOS_TOKEN` | A token that can **read** the three private data repos | A fine-grained PAT (Contents: Read on the three repos) or a GitHub App installation token. The default `GITHUB_TOKEN` can't reach other repos. |
 
 ### (Optional) Refresh on upstream push
@@ -94,16 +85,26 @@ on this repo.)
 
 ## Running it manually
 
-**Repo → Actions → Refresh D1 reference data → Run workflow.** Use this after a
-known upstream update, or to recover from a failed run.
+**Repo → Actions → Refresh Turso reference data → Run workflow.** Use this after
+a known upstream update, or to recover from a failed run. (Run it manually once
+after first setting the secrets, to confirm the end-to-end path.)
 
 ## If you ever need to rebuild from empty
 
-The workflow assumes the schema already exists (migrations applied). For a
-brand-new database, apply the migration first, then the workflow's reseed will
-populate it:
+The workflow assumes the schema already exists. For a brand-new Turso database,
+create it and apply the migrations first, then the workflow's reseed populates it:
+
+```bash
+turso db create ainu-mcp --group default
+turso db shell ainu-mcp < worker/migrations/0001_init.sql
+turso db shell ainu-mcp < worker/migrations/0002_frequency.sql
+```
+
+You can also load the data locally without the workflow:
 
 ```bash
 cd worker
-bunx wrangler d1 migrations apply ainu-mcp --remote
+TURSO_DATABASE_URL=$(turso db show ainu-mcp --url) \
+TURSO_AUTH_TOKEN=$(turso db tokens create ainu-mcp) \
+  bun scripts/load-turso.mjs seed/reset.sql $(grep -oE 'seed/data/[A-Za-z0-9_./-]+\.sql' seed/MANIFEST.txt)
 ```
