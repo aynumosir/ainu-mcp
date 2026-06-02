@@ -1,16 +1,13 @@
-name: Refresh D1 reference data
+name: Refresh Turso reference data
 
-# Rebuilds the D1 reference data (corpus / dictionaries / grammar / vocab) from
-# the upstream aynumosir data repos and re-applies it to the live D1 database
-# in place. The glossary is NOT touched here — the MCP reads it live from Google
-# Sheets, so it is always current without a scheduler.
+# Rebuilds the reference data (corpus / dictionaries / grammar / frequency) from
+# the upstream aynumosir data repos and re-applies it to the live Turso (libSQL)
+# database in place. The glossary is NOT touched here — the MCP reads it live
+# from Google Sheets, so it is always current without a scheduler.
 #
 # Strategy: build the full seed first, VALIDATE it, and only then clear + reload
-# the live DB (stable database_id, no redeploy). A full rebuild is ~1.5M D1
-# row-writes (clear + reload) — over the Free plan's *documented* 100k/day cap,
-# but in practice it runs on Free for $0 (the initial seed wrote ~1.35M rows in
-# 24h on Free and succeeded). See docs/REFRESHING-DATA.md, incl. what to do if
-# Cloudflare ever starts enforcing that cap.
+# the live DB in place (same DB, no worker redeploy). Loading goes through the
+# batched libSQL loader (worker/scripts/load-turso.mjs); see docs/REFRESHING-DATA.md.
 
 on:
   schedule:
@@ -28,7 +25,7 @@ on:
 
 # Never let two reseeds clobber the same DB concurrently.
 concurrency:
-  group: refresh-d1
+  group: refresh-turso
   cancel-in-progress: false
 
 permissions:
@@ -40,9 +37,6 @@ jobs:
     timeout-minutes: 60
     env:
       AINU_ROOT: ${{ github.workspace }}/_data
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      D1_DB: ainu-mcp
     steps:
       - name: Checkout ainu-mcp
         uses: actions/checkout@v4
@@ -92,7 +86,7 @@ jobs:
       - name: Install Python deps
         run: uv sync --frozen
 
-      - name: Build D1 seed
+      - name: Build seed
         run: uv run python etl/build_d1.py
 
       # ───── Safety gate: validate the freshly built data BEFORE touching prod.
@@ -124,54 +118,25 @@ jobs:
             exit 1
           fi
 
-      - name: Set up Bun (wrangler)
+      - name: Set up Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Install wrangler
+      - name: Install worker deps (@libsql/client for the loader)
         working-directory: worker
         run: bun install --frozen-lockfile
 
-      # ───── Reset + reload the live D1 in place. From here the DB is briefly
-      # being rewritten (~1.5M writes — runs on Free in practice; see header).
-      - name: Reset + reseed D1 (in-place)
+      # ───── Reset + reload the live Turso DB in place via the batched libSQL
+      # loader (turso db shell drops the stream on the big seed files). During
+      # this window (a few minutes, monthly) reference-data searches may return
+      # partial results; the glossary is unaffected (it's live from Sheets). The
+      # loader applies reset.sql (clear all tables) then the seed in MANIFEST
+      # order, and runs a post-reload sanity check (aborts if counts look wrong).
+      - name: Reset + reload Turso (in-place)
         working-directory: worker
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
         run: |
           set -euo pipefail
-          d1() { bunx wrangler d1 execute "$D1_DB" --remote --file="$1"; }
-
-          echo "::group::reset (clear all reference tables)"
-          d1 seed/reset.sql
-          echo "::endgroup::"
-
-          # Apply the seed files in the exact order the ETL recorded in MANIFEST
-          # (dict_entries MUST precede the dict_fts external-content rebuild). We
-          # parse only the filenames — not the command text — so the stale
-          # `d1 import` vs `d1 execute` wording in MANIFEST is irrelevant.
-          grep -oE 'seed/data/[A-Za-z0-9_./-]+\.sql' seed/MANIFEST.txt | while read -r f; do
-            echo "::group::load $f"
-            d1 "$f"
-            echo "::endgroup::"
-          done
-
-      - name: Post-reseed sanity check
-        working-directory: worker
-        run: |
-          set -euo pipefail
-          out=$(bunx wrangler d1 execute "$D1_DB" --remote --json --command \
-            "SELECT
-               (SELECT count(*) FROM corpus_fts)        AS corpus,
-               (SELECT count(*) FROM dict_entries)      AS dict_entries,
-               (SELECT count(*) FROM dictionaries)      AS dictionaries,
-               (SELECT count(*) FROM grammar_materials) AS grammar,
-               (SELECT count(*) FROM vocab_candidates)  AS vocab,
-               (SELECT count(*) FROM token_freq)        AS token_freq,
-               (SELECT count(*) FROM stopwords)         AS stopwords;")
-          echo "$out"
-          corpus=$(echo "$out" | grep -oE '"corpus"[: ]+[0-9]+' | grep -oE '[0-9]+')
-          dict=$(echo "$out" | grep -oE '"dict_entries"[: ]+[0-9]+' | grep -oE '[0-9]+')
-          echo "corpus=$corpus dict_entries=$dict"
-          if [ "${corpus:-0}" -lt 100000 ] || [ "${dict:-0}" -lt 100000 ]; then
-            echo "::error::post-reseed counts look wrong (corpus=$corpus dict=$dict) — investigate the live DB"
-            exit 1
-          fi
-          echo "✓ reseed complete and sane"
+          files=$(grep -oE 'seed/data/[A-Za-z0-9_./-]+\.sql' seed/MANIFEST.txt)
+          bun scripts/load-turso.mjs seed/reset.sql $files

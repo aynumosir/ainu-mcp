@@ -1,4 +1,4 @@
-"""Build the D1 seed for the hosted Ainu MCP Worker.
+"""Build the reference-data seed for the hosted Ainu MCP Worker (loaded into Turso).
 
 This is the ETL that bridges the Python toolchain and the TypeScript Worker. It
 *reuses the existing `ainu_mcp` loaders* — which already encode every dictionary
@@ -7,13 +7,18 @@ etc.) — so the hosted server reads byte-identical data without re-implementing
 any of that logic in TS.
 
 Output: chunked `*.sql` files under `worker/seed/` containing INSERTs that match
-`worker/migrations/0001_init.sql`. Apply them after running the migration:
+`worker/migrations/0001_init.sql` + `0002_frequency.sql`. The reference store is
+Turso (libSQL); apply the schema then load the seed via the batched libSQL
+loader (see worker/README.md / docs/REFRESHING-DATA.md):
 
     cd worker
-    wrangler d1 migrations apply ainu-mcp --remote
-    # then apply each seed file (see worker/seed/MANIFEST.txt). On the Free plan
-    # D1 allows 100k row-writes/day, so spread the corpus chunks over a few days
-    # or apply everything in one short Workers Paid window.
+    turso db shell ainu-mcp < migrations/0001_init.sql
+    turso db shell ainu-mcp < migrations/0002_frequency.sql
+    TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... \\
+      bun scripts/load-turso.mjs seed/reset.sql $(... seed/MANIFEST.txt ...)
+
+(The filename `build_d1.py` is kept for import stability; it builds the seed for
+Turso now, not Cloudflare D1.)
 
 Run from the repo root:
 
@@ -447,14 +452,14 @@ def main() -> None:
         + corpus_files      # largest; apply last / spread across days
     )
     (SEED_DIR / "MANIFEST.txt").write_text(
-        "# Apply in this order, after `wrangler d1 migrations apply`:\n"
-        "#\n"
-        "# Free plan = 100k row-writes/day. The big writers are dict_entries\n"
-        "# (~284k rows), the dict_fts_* rebuild (~284k FTS rows), and corpus\n"
-        "# (~195k rows). dict_entries_* MUST all be applied before dict_fts_*.\n"
-        "# Either spread these chunks across several days, or enable Workers Paid\n"
-        "# for the seed window and downgrade afterwards (runtime is free either way).\n\n"
-        + "\n".join(f"wrangler d1 execute ainu-mcp --remote --file=seed/data/{f}" for f in manifest)
+        "# Reference store is Turso (libSQL). Apply the schema first\n"
+        "# (turso db shell ainu-mcp < migrations/0001_init.sql, then 0002), then\n"
+        "# load these files IN THIS ORDER via the batched libSQL loader — e.g.\n"
+        "#   cd worker && TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... \\\n"
+        "#     bun scripts/load-turso.mjs seed/reset.sql <files below>\n"
+        "# dict_entries_* MUST all be loaded before the dict_fts_* rebuild.\n"
+        "# (The loader parses only the filenames below, not the line text.)\n\n"
+        + "\n".join(f"seed/data/{f}" for f in manifest)
         + "\n",
         encoding="utf-8",
     )
