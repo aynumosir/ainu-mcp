@@ -29,13 +29,10 @@ def _normalize(tok: str) -> str:
     return t
 
 
-# Stopwords: extremely common particles/auxiliaries that don't merit glossary entries
-_STOPWORDS = {
-    "wa", "ne", "ka", "ta", "kor", "kusu", "ne", "ya", "kor", "an", "ne", "ruwe",
-    "akusu", "korka", "tap", "siri", "siri", "ki", "yan", "na", "no", "hine",
-    "hi", "p", "pe", "po", "ne", "anak", "anakne", "ye", "hawe", "p", "pe", "ne",
-    "yakka", "yakun", "yakka", "ko", "wa", "kor", "or",
-}
+# Stopwords (extremely common particles/auxiliaries that don't merit glossary
+# entries) come from the shared aynumosir/ainu-stopwords list — see
+# ainu_mcp.stopwords. Imported lazily where used to avoid a module-load cycle
+# (stopwords imports gaps for _normalize).
 
 
 @cache
@@ -93,6 +90,9 @@ def missing_high_frequency(top_n: int = 200, min_count: int = 20) -> list[dict[s
     Each entry includes: token, count, in_dicts (list of dicts that attest it),
     sample sentence (for context).
     """
+    from . import stopwords  # local import avoids a module-load cycle (stopwords → gaps)
+
+    stops = stopwords.normalized_set()
     counter: Counter[str] = Counter()
     sample: dict[str, tuple[str, str]] = {}
     for row in corpus._load():
@@ -101,7 +101,7 @@ def missing_high_frequency(top_n: int = 200, min_count: int = 20) -> list[dict[s
             continue
         for tok in _TOKEN.findall(text):
             n = _normalize(tok)
-            if not n or n in _STOPWORDS or len(n) <= 1:
+            if not n or n in stops or len(n) <= 1:
                 continue
             counter[n] += 1
             if n not in sample:
