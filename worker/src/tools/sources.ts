@@ -8,6 +8,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Env, Props } from "../types.js";
 import { jsonResult, errorResult, fetchJson, sendJson } from "./helpers.js";
+import { requireOrgMember } from "../auth.js";
 
 const SOURCES = "https://db.aynu.org";
 
@@ -121,11 +122,12 @@ export function registerSourcesWriteTools(server: McpServer, env: Env, props: Pr
     {
       title: z.string(),
       type: z.string().describe("fine type, e.g. dictionary, wordlist, grammar, old-document, book, article, corpus-text"),
-      category: z.enum(["primary", "secondary", "corpus"]).default("primary"),
+      category: z.enum(["primary", "secondary", "corpus"]).describe("classification — choose deliberately (no default)"),
       ...optionalSourceFields,
     },
     async (args) => {
       try {
+        requireOrgMember(props, "source_add");
         const data = await sendJson(env.SOURCES, `${SOURCES}/api/sources`, {
           method: "POST",
           token: env.SOURCES_WRITE_TOKEN,
@@ -150,6 +152,7 @@ export function registerSourcesWriteTools(server: McpServer, env: Env, props: Pr
     },
     async ({ slug, ...args }) => {
       try {
+        requireOrgMember(props, "source_update");
         const data = await sendJson(
           env.SOURCES,
           `${SOURCES}/api/sources/${encodeURIComponent(slug)}`,
