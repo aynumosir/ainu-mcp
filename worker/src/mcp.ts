@@ -19,7 +19,7 @@ import { registerScriptTools } from "./tools/script.js";
 import { registerResearchTools } from "./tools/research.js";
 import { registerGlossaryReadTools, registerGlossaryWriteTools } from "./tools/glossary.js";
 import { registerMorphemeTools } from "./tools/morpheme.js";
-import { registerSourcesTools } from "./tools/sources.js";
+import { registerSourcesTools, registerSourcesWriteTools } from "./tools/sources.js";
 import { registerAuditTool } from "./tools/audit.js";
 import { registerGapsTool } from "./tools/gaps.js";
 import { registerSiteCacheTool } from "./tools/site-cache.js";
@@ -49,6 +49,7 @@ export class AinuMCP extends McpAgent<Env, unknown, Props> {
     // (props is undefined only if the OAuth layer is bypassed; treat as read-only.)
     if (props?.isOrgMember) {
       registerGlossaryWriteTools(this.server, env, props);
+      registerSourcesWriteTools(this.server, env, props);
       registerAuditTool(this.server, env);
       registerGapsTool(this.server, env);
       registerSiteCacheTool(this.server, env, props);

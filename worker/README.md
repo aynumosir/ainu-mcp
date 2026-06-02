@@ -78,9 +78,13 @@ bunx wrangler secret put GITHUB_CLIENT_SECRET
 bunx wrangler secret put COOKIE_ENCRYPTION_KEY      # openssl rand -hex 32
 bunx wrangler secret put GOOGLE_SA_CLIENT_EMAIL     # ainu-glossary@…iam.gserviceaccount.com
 bunx wrangler secret put GOOGLE_SA_PRIVATE_KEY      # the full PEM (paste, incl. BEGIN/END)
+bunx wrangler secret put SOURCES_WRITE_TOKEN        # shared secret for source_add/source_update; set the SAME value on the ainu-sources Worker
 ```
 
 The service account needs **Editor** on the glossary sheet for the write tools.
+`SOURCES_WRITE_TOKEN` authorizes the `source_add`/`source_update` tools' calls to
+the ainu-sources write API — generate one (`openssl rand -hex 32`) and set the
+identical value here and on the `ainu-sources` Worker.
 
 ### 4. Build + load the D1 data
 

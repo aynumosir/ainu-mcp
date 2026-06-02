@@ -357,6 +357,8 @@ A browser GitHub sign-in happens once; the token is stored and reused.
 - dictionary_reverse_lookup(aynu, dicts?, limit?) — Ainu form -> Japanese/English glosses (exact then substring)
 - grammar_list(kind?) — list grammar books/articles
 - grammar_search(query, include_transcribed?, limit?) — filename/title/author + transcribed-fulltext search
+- sources_search(query?, category?, type?, region?, language?, limit?) — search the textual-sources catalogue (db.aynu.org)
+- source_get(slug) — full detail for one source (bibliographic record + persons/places/institutions/links/relations/tags)
 - convert_script(text, from_script, to_script) — convert between latn/kana/cyrl
 - detect_script(text) — detect latn/kana/cyrl
 - script_all(text) — all three script renditions
@@ -371,6 +373,8 @@ A browser GitHub sign-in happens once; the token is stored and reused.
 - glossary_audit()                                 [aynumosir members]
 - glossary_missing_high_frequency(top_n?, min_count?)  [aynumosir members]
 - glossary_refresh_site_cache(dry_run?)            [aynumosir members]
+- source_add(title, type, category, …)             [aynumosir members]
+- source_update(slug, …)                           [aynumosir members]
 
 ## Related
 - itak.aynu.org — the Itak-uoeroskip glossary this server edits
