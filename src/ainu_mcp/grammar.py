@@ -20,6 +20,16 @@ from .config import get_config
 _FILENAME_RE = re.compile(r"^(?P<year>\d{4})_(?P<author>[^_]+)_(?P<title>.+)\.(pdf|md|txt)$")
 
 
+def _under_ocr_workdir(rel: Path) -> bool:
+    """Whether a path lives inside a raw OCR working dir (``<paper>.ocr/``). Those
+    are gitignored, noisy per-page intermediates (page images + per-page text)
+    that must NOT be indexed. The consolidated, committed OCR text lives in
+    ``articles/ocr/`` — a dir literally named ``ocr``, not ``*.ocr`` — which is
+    kept. Skipping these keeps a local build's output identical to a fresh
+    clone's (what the refresh pipeline seeds from)."""
+    return any(part.endswith(".ocr") for part in rel.parts)
+
+
 @cache
 def _walk_materials() -> list[dict[str, Any]]:
     root = get_config().grammar_dir
@@ -36,6 +46,8 @@ def _walk_materials() -> list[dict[str, Any]]:
             if p.suffix.lower() not in {".pdf", ".md", ".txt"}:
                 continue
             rel = p.relative_to(root)
+            if _under_ocr_workdir(rel):
+                continue
             meta: dict[str, Any] = {
                 "kind": kind,
                 "path": str(rel),
@@ -65,6 +77,8 @@ def _scan_transcribed(q: str, limit: int) -> list[dict[str, Any]]:
         return hits
     for p in root.rglob("*"):
         if not p.is_file() or p.suffix.lower() not in {".md", ".txt"}:
+            continue
+        if _under_ocr_workdir(p.relative_to(root)):
             continue
         try:
             text = p.read_text(encoding="utf-8", errors="replace")
