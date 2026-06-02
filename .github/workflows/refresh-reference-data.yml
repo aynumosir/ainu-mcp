@@ -53,7 +53,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$AINU_ROOT"
-          for r in ainu-corpora ainu-dictionaries ainu-grammar ainu-stopwords; do
+          # ainu-stopwords is public and tiny — the ETL fetches it straight from
+          # GitHub (see ainu_mcp.stopwords), so it is NOT cloned here. Only the
+          # private data repos need the authenticated clone.
+          for r in ainu-corpora ainu-dictionaries ainu-grammar; do
             echo "::group::clone $r"
             git clone --depth 1 \
               "https://x-access-token:${GH_TOKEN}@github.com/aynumosir/$r.git" \
@@ -110,7 +113,10 @@ jobs:
           ls worker/seed/data/dict_entries_0001.sql >/dev/null
           ls worker/seed/data/dict_fts_0001.sql >/dev/null
           ls worker/seed/data/token_freq_0001.sql >/dev/null
-          ls worker/seed/data/stopwords.sql >/dev/null
+          # Non-empty: stopwords are fetched from GitHub at build time, so a
+          # failed fetch must abort here (before prod is touched) rather than
+          # silently reseed an empty stopwords table.
+          test -s worker/seed/data/stopwords.sql
           seed_bytes=$(du -sb worker/seed/data | cut -f1)
           echo "seed/data total: $seed_bytes bytes"
           if [ "$seed_bytes" -lt 20000000 ]; then
