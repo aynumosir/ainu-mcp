@@ -377,13 +377,13 @@ def build_token_freq(counter: Counter[str], stop_norm: set[str]) -> list[str]:
 
 
 def build_vocab_candidates(
-    counter: Counter[str], sample: dict[str, tuple[str, str]]
+    counter: Counter[str], sample: dict[str, tuple[str, str]], stop_norm: set[str]
 ) -> list[str]:
     """Precompute glossary_missing_high_frequency's heavy part: dictionary-
     attested corpus tokens with their count + sample. The glossary subtraction
     happens at runtime (live Sheets), so it is NOT applied here. Drops the
-    stopwords / single characters that token_freq keeps — they never make sense
-    as glossary candidates (mirrors ainu_mcp.gaps)."""
+    stopwords (aynumosir/ainu-stopwords) / single characters that token_freq
+    keeps — they never make sense as glossary candidates (mirrors ainu_mcp.gaps)."""
     dict_idx = gaps._dict_lemma_index()
     path = DATA_DIR / "vocab_candidates.sql"
     written = 0
@@ -391,7 +391,7 @@ def build_vocab_candidates(
         for tok, cnt in counter.most_common():
             if cnt < VOCAB_MIN_COUNT:
                 break
-            if tok in gaps._STOPWORDS or len(tok) <= 1:
+            if tok in stop_norm or len(tok) <= 1:
                 continue
             attested = [DICT_SHORT[d] for d in dict_idx if d in DICT_SHORT and tok in dict_idx[d]]
             if not attested:
@@ -432,7 +432,7 @@ def main() -> None:
     counter, sample = count_corpus_tokens()
     stopword_files, stop_norm = build_stopwords()
     token_freq_files = build_token_freq(counter, stop_norm)
-    vocab_files = build_vocab_candidates(counter, sample)
+    vocab_files = build_vocab_candidates(counter, sample, stop_norm)
     meta_files = build_meta(corpus_stats, counter)
 
     # Apply order matters: dict_entries before dict_fts rebuild. token_freq /
