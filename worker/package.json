@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "^0.7.0",
+    "@libsql/client": "^0.17.3",
     "@modelcontextprotocol/sdk": "^1.13.0",
     "agents": "^0.13.3",
     "ainconv": "^0.5.1",

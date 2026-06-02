@@ -6,8 +6,12 @@
  */
 
 export interface Env {
-  // Bindings (wrangler.jsonc)
+  // Reference store. NOT a Cloudflare D1 binding anymore — env.DB is a
+  // libSQL-backed shim (see libsql.ts) pointed at Turso, set in mcp.ts init().
+  // Typed as D1Database so the query layer (db.ts + tools) is unchanged.
   DB: D1Database;
+
+  // Bindings (wrangler.jsonc)
   SITE_CACHE: R2Bucket;
   OAUTH_KV: KVNamespace;
   MCP_OBJECT: DurableObjectNamespace;
@@ -32,6 +36,9 @@ export interface Env {
   // Must match `SOURCES_WRITE_TOKEN` on the ainu-sources Worker. Gates the
   // source_add / source_update tools' service-binding calls.
   SOURCES_WRITE_TOKEN: string;
+  // Turso (libSQL) connection for the reference store (replaces the D1 binding).
+  DATABASE_URL: string; // libsql://ainu-mcp-…turso.io
+  DATABASE_AUTH_TOKEN: string;
 }
 
 /**
