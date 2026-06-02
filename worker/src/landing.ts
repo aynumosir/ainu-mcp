@@ -371,6 +371,8 @@ A browser GitHub sign-in happens once; the token is stored and reused.
 - glossary_audit()                                 [aynumosir members]
 - glossary_missing_high_frequency(top_n?, min_count?)  [aynumosir members]
 - glossary_refresh_site_cache(dry_run?)            [aynumosir members]
+- source_add(title, type, category, …)             [aynumosir members]
+- source_update(slug, …)                           [aynumosir members]
 
 ## Related
 - itak.aynu.org — the Itak-uoeroskip glossary this server edits

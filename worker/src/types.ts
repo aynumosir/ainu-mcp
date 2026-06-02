@@ -28,6 +28,10 @@ export interface Env {
   COOKIE_ENCRYPTION_KEY: string;
   GOOGLE_SA_CLIENT_EMAIL: string;
   GOOGLE_SA_PRIVATE_KEY: string;
+  // Shared bearer secret for the ainu-sources write API (POST/PATCH /api/sources).
+  // Must match `SOURCES_WRITE_TOKEN` on the ainu-sources Worker. Gates the
+  // source_add / source_update tools' service-binding calls.
+  SOURCES_WRITE_TOKEN: string;
 }
 
 /**
