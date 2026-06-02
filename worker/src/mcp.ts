@@ -10,6 +10,7 @@
 import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Env, Props } from "./types.js";
+import { LibsqlDb } from "./libsql.js";
 
 import { registerCorpusTools } from "./tools/corpus.js";
 import { registerFrequencyTools } from "./tools/frequency.js";
@@ -33,6 +34,10 @@ export class AinuMCP extends McpAgent<Env, unknown, Props> {
   async init(): Promise<void> {
     const env = this.env;
     const props = this.props;
+
+    // Reference data lives in Turso (libSQL), not a Cloudflare D1 binding: back
+    // env.DB with a libSQL-backed shim so the whole query layer is unchanged.
+    env.DB = new LibsqlDb(env.DATABASE_URL, env.DATABASE_AUTH_TOKEN) as unknown as D1Database;
 
     // ── Reference / read surface — all authenticated users ──
     registerCorpusTools(this.server, env);

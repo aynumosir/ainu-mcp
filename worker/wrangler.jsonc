@@ -51,16 +51,12 @@
     { "binding": "SOURCES", "service": "ainu-sources" }
   ],
 
-  // Reference data (corpus / dictionaries / grammar). Seeded by etl/build_d1.py.
-  // Create with: wrangler d1 create ainu-mcp
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "ainu-mcp",
-      "database_id": "eece9bfb-0c22-4a80-bc8b-56237a356544",
-      "migrations_dir": "migrations"
-    }
-  ],
+  // Reference data (corpus / dictionaries / grammar / frequency) now lives in
+  // Turso (libSQL), not D1 — the D1 free-tier per-database size cap blocked
+  // writes at ~615 MB. env.DB is a libSQL-backed shim (src/libsql.ts) created in
+  // mcp.ts from the DATABASE_URL / DATABASE_AUTH_TOKEN secrets (wrangler secret
+  // put). Schema lives in migrations/ and is applied to Turso with
+  // `turso db shell ainu-mcp < migrations/*.sql`; data is loaded by the ETL.
 
   // The itak.aynu.org site cache bucket (table.json / sheets.json).
   // This is the SAME bucket the website reads from; binding replaces boto3.
