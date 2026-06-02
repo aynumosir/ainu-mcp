@@ -10,15 +10,18 @@ AINU_ROOT=/path/to/Ainu uv run python etl/build_d1.py
 ```
 
 This reuses the Python loaders in `src/ainu_mcp/` (corpus, dictionaries,
-grammar, gaps) so the hosted server serves byte-identical data, and writes:
+grammar, gaps, stopwords) so the hosted server serves byte-identical data, and
+writes:
 
 - `data/corpus_*.sql` — corpus_fts rows (chunked at 50k)
 - `data/dict_entries_*.sql` + `data/dict_fts.sql` — dictionary rows then the
   external-content FTS rebuild (apply entries **before** the rebuild)
 - `data/dictionaries_list.sql` — per-dictionary counts
 - `data/grammar_materials_0001.sql` + `data/grammar_fts_0001.sql`
+- `data/stopwords.sql` — Ainu stopword list (from `aynumosir/ainu-stopwords`)
+- `data/token_freq_*.sql` — every corpus token with its count + stopword flag
 - `data/vocab_candidates.sql` — precomputed gap candidates (count ≥ 5)
-- `data/meta.sql` — precomputed corpus stats
+- `data/meta.sql` — precomputed corpus stats + token totals
 - `MANIFEST.txt` — the exact apply order
 
 Apply order matters (dict_entries → dict_fts). See `MANIFEST.txt`, and the

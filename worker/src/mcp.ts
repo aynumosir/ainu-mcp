@@ -12,6 +12,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Env, Props } from "./types.js";
 
 import { registerCorpusTools } from "./tools/corpus.js";
+import { registerFrequencyTools } from "./tools/frequency.js";
 import { registerDictionaryTools } from "./tools/dictionaries.js";
 import { registerGrammarTools } from "./tools/grammar.js";
 import { registerScriptTools } from "./tools/script.js";
@@ -35,6 +36,7 @@ export class AinuMCP extends McpAgent<Env, unknown, Props> {
 
     // ── Reference / read surface — all authenticated users ──
     registerCorpusTools(this.server, env);
+    registerFrequencyTools(this.server, env);
     registerDictionaryTools(this.server, env);
     registerGrammarTools(this.server, env);
     registerScriptTools(this.server);

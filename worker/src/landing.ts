@@ -328,8 +328,9 @@ p{color:var(--soft);margin:14px 0 0;font-size:1rem}
 export const LLMS_TXT = `# ainu-mcp
 
 > A Model Context Protocol (MCP) server for the Ainu language. One endpoint
-> exposes corpus search, multi-dictionary lookup, grammar references, script
-> conversion, and read/write access to the Itak-uoeroskip glossary.
+> exposes corpus search + word frequencies, multi-dictionary lookup, grammar
+> references, script conversion, and read/write access to the Itak-uoeroskip
+> glossary.
 
 Endpoint (Streamable HTTP): ${ENDPOINT}
 Transport: MCP over Streamable HTTP (legacy SSE at /sse)
@@ -348,6 +349,9 @@ A browser GitHub sign-in happens once; the token is stored and reused.
 ## Tools
 - corpus_search(query, lang=ain|jpn|any, dialect?, author?, limit?) — search ~195k aligned Ainu/Japanese sentences
 - corpus_stats() — total sentences + dialect distribution
+- corpus_word_frequency(word) — corpus frequency of a word: count, rank, stopword flag, totals (affix clitics normalized)
+- corpus_frequency_list(limit?, offset?, include_stopwords?, min_count?) — ranked token frequency list (drop stopwords with include_stopwords=false)
+- corpus_stopwords() — Ainu stopword list (from aynumosir/ainu-stopwords)
 - dictionary_list() — list dictionaries with entry counts
 - dictionary_lookup(word, dicts?, fields?, limit?) — substring lookup across any field of 80+ dictionaries
 - dictionary_reverse_lookup(aynu, dicts?, limit?) — Ainu form -> Japanese/English glosses (exact then substring)
