@@ -40,6 +40,10 @@ class Config:
     def grammar_dir(self) -> Path:
         return self.ainu_root / "ainu-grammar"
 
+    @property
+    def stopwords_file(self) -> Path:
+        return self.ainu_root / "ainu-stopwords" / "ainu-stopwords.txt"
+
 
 def _build_credentials_info() -> dict[str, Any] | None:
     """Assemble a service-account info dict from PRIVATE_GOOGLE_API_* env vars,

@@ -20,4 +20,6 @@ DELETE FROM corpus_fts;
 DELETE FROM grammar_fts;
 DELETE FROM grammar_materials;
 DELETE FROM vocab_candidates;
+DELETE FROM token_freq;
+DELETE FROM stopwords;
 DELETE FROM meta;

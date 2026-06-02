@@ -31,7 +31,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable
 
-from ainu_mcp import corpus, dictionaries, gaps, grammar
+from ainu_mcp import corpus, dictionaries, gaps, grammar, stopwords
 from ainu_mcp.config import get_config
 
 SEED_DIR = Path(__file__).resolve().parent.parent / "worker" / "seed"
@@ -326,11 +326,12 @@ def build_grammar() -> list[str]:
     return files
 
 
-def build_vocab_candidates() -> list[str]:
-    """Precompute glossary_missing_high_frequency's heavy part: corpus token
-    frequencies, attestation, and samples. The glossary subtraction happens at
-    runtime (live Sheets), so it is NOT applied here."""
-    print("vocab: counting corpus tokens…")
+def count_corpus_tokens() -> tuple[Counter[str], dict[str, tuple[str, str]]]:
+    """Count every normalized Ainu token in the corpus in a single pass, keeping
+    a first-occurrence sample (text + translation) per token. Stopwords and
+    single characters are kept here — they're needed by token_freq for honest
+    word-frequency lookups; the vocab-gap pass filters them out itself."""
+    print("tokens: counting corpus tokens…")
     counter: Counter[str] = Counter()
     sample: dict[str, tuple[str, str]] = {}
     for row in corpus._load():
@@ -339,12 +340,50 @@ def build_vocab_candidates() -> list[str]:
             continue
         for tok in gaps._TOKEN.findall(text):
             n = gaps._normalize(tok)
-            if not n or n in gaps._STOPWORDS or len(n) <= 1:
+            if not n:
                 continue
             counter[n] += 1
             if n not in sample:
                 sample[n] = (text[:120], (row.get("translation") or "")[:120])
+    print(f"tokens: {len(counter)} distinct, {sum(counter.values())} occurrences")
+    return counter, sample
 
+
+def build_stopwords() -> tuple[list[str], set[str]]:
+    """Seed the stopwords table from aynumosir/ainu-stopwords. Returns the seed
+    files and the normalized stopword set (for token_freq's is_stopword flag)."""
+    words = stopwords.all_stopwords()
+    norm = set(stopwords.normalized_set())
+    path = DATA_DIR / "stopwords.sql"
+    with path.open("w", encoding="utf-8") as f:
+        for w in words:
+            f.write(
+                f"INSERT INTO stopwords(word, normalized) VALUES ({q(w)}, {q(gaps._normalize(w))});\n"
+            )
+    print(f"stopwords: {len(words)} words ({len(norm)} normalized) from {stopwords.SOURCE}")
+    return ["stopwords.sql"], norm
+
+
+def build_token_freq(counter: Counter[str], stop_norm: set[str]) -> list[str]:
+    """Seed token_freq with every token's count + stopword flag, emitted in
+    descending-count order so `ORDER BY count DESC, rowid` reproduces
+    Counter.most_common (ties broken by first appearance)."""
+    w = ChunkWriter("token_freq", "token_freq(token, count, is_stopword)")
+    for tok, cnt in counter.most_common():
+        w.add([tok, cnt, 1 if tok in stop_norm else 0])
+    n = w.close()
+    print(f"token_freq: {len(counter)} tokens → {n} file(s)")
+    return w.files
+
+
+def build_vocab_candidates(
+    counter: Counter[str], sample: dict[str, tuple[str, str]]
+) -> list[str]:
+    """Precompute glossary_missing_high_frequency's heavy part: dictionary-
+    attested corpus tokens with their count + sample. The glossary subtraction
+    happens at runtime (live Sheets), so it is NOT applied here. Drops the
+    stopwords / single characters that token_freq keeps — they never make sense
+    as glossary candidates (mirrors ainu_mcp.gaps)."""
     dict_idx = gaps._dict_lemma_index()
     path = DATA_DIR / "vocab_candidates.sql"
     written = 0
@@ -352,6 +391,8 @@ def build_vocab_candidates() -> list[str]:
         for tok, cnt in counter.most_common():
             if cnt < VOCAB_MIN_COUNT:
                 break
+            if tok in gaps._STOPWORDS or len(tok) <= 1:
+                continue
             attested = [DICT_SHORT[d] for d in dict_idx if d in DICT_SHORT and tok in dict_idx[d]]
             if not attested:
                 continue
@@ -365,11 +406,15 @@ def build_vocab_candidates() -> list[str]:
     return ["vocab_candidates.sql"]
 
 
-def build_meta(corpus_stats: dict[str, Any]) -> list[str]:
+def build_meta(corpus_stats: dict[str, Any], counter: Counter[str]) -> list[str]:
     path = DATA_DIR / "meta.sql"
     rows = {
         "corpus_stats": json.dumps(corpus_stats, ensure_ascii=False),
         "vocab_min_count": str(VOCAB_MIN_COUNT),
+        # Corpus-wide token totals, so corpus_word_frequency reports them without
+        # scanning token_freq.
+        "token_total_distinct": str(len(counter)),
+        "token_total_occurrences": str(sum(counter.values())),
     }
     with path.open("w", encoding="utf-8") as f:
         for k, v in rows.items():
@@ -384,13 +429,19 @@ def main() -> None:
     corpus_files, corpus_stats = build_corpus()
     dict_files, _ = build_dictionaries()
     grammar_files = build_grammar()
-    vocab_files = build_vocab_candidates()
-    meta_files = build_meta(corpus_stats)
+    counter, sample = count_corpus_tokens()
+    stopword_files, stop_norm = build_stopwords()
+    token_freq_files = build_token_freq(counter, stop_norm)
+    vocab_files = build_vocab_candidates(counter, sample)
+    meta_files = build_meta(corpus_stats, counter)
 
-    # Apply order matters: dict_entries before dict_fts rebuild.
+    # Apply order matters: dict_entries before dict_fts rebuild. token_freq /
+    # stopwords / vocab are independent (no FKs), so their order is free.
     manifest = (
         dict_files          # dict_entries_*, dict_fts, dictionaries_list
         + grammar_files
+        + stopword_files
+        + token_freq_files
         + vocab_files
         + meta_files
         + corpus_files      # largest; apply last / spread across days

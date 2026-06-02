@@ -53,7 +53,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$AINU_ROOT"
-          for r in ainu-corpora ainu-dictionaries ainu-grammar; do
+          for r in ainu-corpora ainu-dictionaries ainu-grammar ainu-stopwords; do
             echo "::group::clone $r"
             git clone --depth 1 \
               "https://x-access-token:${GH_TOKEN}@github.com/aynumosir/$r.git" \
@@ -109,6 +109,8 @@ jobs:
           ls worker/seed/data/corpus_0001.sql >/dev/null
           ls worker/seed/data/dict_entries_0001.sql >/dev/null
           ls worker/seed/data/dict_fts_0001.sql >/dev/null
+          ls worker/seed/data/token_freq_0001.sql >/dev/null
+          ls worker/seed/data/stopwords.sql >/dev/null
           seed_bytes=$(du -sb worker/seed/data | cut -f1)
           echo "seed/data total: $seed_bytes bytes"
           if [ "$seed_bytes" -lt 20000000 ]; then
@@ -155,7 +157,9 @@ jobs:
                (SELECT count(*) FROM dict_entries)      AS dict_entries,
                (SELECT count(*) FROM dictionaries)      AS dictionaries,
                (SELECT count(*) FROM grammar_materials) AS grammar,
-               (SELECT count(*) FROM vocab_candidates)  AS vocab;")
+               (SELECT count(*) FROM vocab_candidates)  AS vocab,
+               (SELECT count(*) FROM token_freq)        AS token_freq,
+               (SELECT count(*) FROM stopwords)         AS stopwords;")
           echo "$out"
           corpus=$(echo "$out" | grep -oE '"corpus"[: ]+[0-9]+' | grep -oE '[0-9]+')
           dict=$(echo "$out" | grep -oE '"dict_entries"[: ]+[0-9]+' | grep -oE '[0-9]+')

@@ -67,6 +67,7 @@ AINU_ROOT=/home/mkpoli/projects/Ainu uv run python etl/build_d1.py
 - `ainu-corpora/data.jsonl`
 - `ainu-dictionaries/<dict-name>/*.tsv`
 - `ainu-grammar/{books,articles}/...`
+- `ainu-stopwords/ainu-stopwords.txt` (optional — only the stopword/frequency tools use it; absent ⇒ empty stopword list)
 
 The seed is applied to D1 with `wrangler d1 execute` (see
 [`docs/REFRESHING-DATA.md`](docs/REFRESHING-DATA.md)). A scheduled GitHub Action
@@ -105,6 +106,9 @@ the row since, the update is refused — re-read and retry.
 | --- | --- |
 | `corpus_search(query, lang, dialect?, author?, limit?)` | Search aligned Ainu/Japanese sentences (`lang`: `ain`, `jpn`, `any`) |
 | `corpus_stats` | Total sentences + top dialect distribution |
+| `corpus_word_frequency(word)` | Corpus frequency of a word — count, rank, stopword flag, corpus totals (affix-clitics normalized, so `ku=nukar` = `nukar`) |
+| `corpus_frequency_list(limit?, offset?, include_stopwords?, min_count?)` | Ranked frequency list; set `include_stopwords=false` to list content words only |
+| `corpus_stopwords` | The Ainu stopword list (from [`aynumosir/ainu-stopwords`](https://github.com/aynumosir/ainu-stopwords)) |
 | `dictionary_list` | List dictionaries with entry counts |
 | `dictionary_lookup(word, dicts?, fields?, limit?)` | Multi-dictionary lookup (any field; supports substring) |
 | `dictionary_reverse_lookup(aynu, dicts?, limit?)` | Ainu → Japanese/English by exact lemma first then substring; Ota's reverse index included |

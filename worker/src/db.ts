@@ -225,3 +225,63 @@ export async function getMeta(db: D1Database, key: string): Promise<string | nul
   const row = await db.prepare(`SELECT value FROM meta WHERE key = ?`).bind(key).first<{ value: string }>();
   return row?.value ?? null;
 }
+
+// ───────────────────────────── Frequency + stopwords ───────────────────────────── //
+
+export interface TokenFreqRow {
+  token: string;
+  count: number;
+  is_stopword: number;
+}
+
+/** Frequency row for one normalized token, plus its 1-based rank among all
+ * distinct tokens (rank = number of tokens with a strictly higher count + 1).
+ * Returns null when the token never appears in the corpus. */
+export async function tokenFrequency(
+  db: D1Database,
+  normalized: string,
+): Promise<{ count: number; is_stopword: boolean; rank: number } | null> {
+  if (!normalized) return null;
+  const row = await db
+    .prepare(`SELECT count, is_stopword FROM token_freq WHERE token = ?`)
+    .bind(normalized)
+    .first<{ count: number; is_stopword: number }>();
+  if (!row) return null;
+  const higher = await db
+    .prepare(`SELECT count(*) AS c FROM token_freq WHERE count > ?`)
+    .bind(row.count)
+    .first<{ c: number }>();
+  return { count: row.count, is_stopword: row.is_stopword === 1, rank: (higher?.c ?? 0) + 1 };
+}
+
+/** Most-frequent tokens, descending by count (ties by first-appearance rowid =
+ * ETL emission order). Optionally drops stopwords before paging, so limit/offset
+ * count only kept tokens. */
+export async function frequencyList(
+  db: D1Database,
+  opts: { limit: number; offset: number; includeStopwords: boolean; minCount: number },
+): Promise<TokenFreqRow[]> {
+  const where = opts.includeStopwords ? `count >= ?` : `count >= ? AND is_stopword = 0`;
+  const offset = Number.isFinite(opts.offset) && opts.offset > 0 ? Math.floor(opts.offset) : 0;
+  const { results } = await db
+    .prepare(
+      `SELECT token, count, is_stopword FROM token_freq WHERE ${where} ORDER BY count DESC, rowid LIMIT ? OFFSET ?`,
+    )
+    .bind(opts.minCount, clampLimit(opts.limit), offset)
+    .all<TokenFreqRow>();
+  return results ?? [];
+}
+
+/** The canonical stopword list (published forms), in source order. */
+export async function stopwordsList(db: D1Database): Promise<string[]> {
+  const { results } = await db.prepare(`SELECT word FROM stopwords ORDER BY rowid`).all<{ word: string }>();
+  return (results ?? []).map((r) => r.word);
+}
+
+/** Whether a normalized word is a stopword (matches against the normalized
+ * column, so it works even for words absent from the corpus). */
+export async function isStopword(db: D1Database, normalized: string): Promise<boolean> {
+  if (!normalized) return false;
+  const row = await db.prepare(`SELECT 1 AS x FROM stopwords WHERE normalized = ? LIMIT 1`).bind(normalized).first<{ x: number }>();
+  return row != null;
+}
