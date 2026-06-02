@@ -85,7 +85,7 @@ jobs:
           curl -sf -X POST \
             -H "Authorization: Bearer ${{ secrets.AINU_MCP_DISPATCH_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/aynumosir/ainu-mcp-full/dispatches \
+            https://api.github.com/repos/aynumosir/ainu-mcp/dispatches \
             -d '{"event_type":"upstream-data-changed"}'
 ```
 
