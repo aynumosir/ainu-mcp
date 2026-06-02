@@ -17,3 +17,17 @@ COOKIE_ENCRYPTION_KEY=
 GOOGLE_SA_CLIENT_EMAIL=ainu-glossary@ainu-glossary.iam.gserviceaccount.com
 # Paste the full PEM, including BEGIN/END lines. \n escapes are also accepted.
 GOOGLE_SA_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+
+# ─── Turso (libSQL) reference store — corpus / dictionaries / grammar / freq ───
+# The Worker reads these via the libSQL shim (src/libsql.ts). Point at the live
+# DB (a read-only token is enough) or a throwaway you seed with
+# scripts/load-turso.mjs.
+#   DATABASE_URL:        turso db show ainu-mcp --url
+#   DATABASE_AUTH_TOKEN: turso db tokens create ainu-mcp --read-only
+DATABASE_URL=libsql://ainu-mcp-<org>.turso.io
+DATABASE_AUTH_TOKEN=
+
+# ─── Shared secret for the source_add / source_update write tools ───
+# Must match SOURCES_WRITE_TOKEN on the ainu-sources Worker (openssl rand -hex 32).
+# Only needed to exercise the source write tools locally.
+SOURCES_WRITE_TOKEN=
