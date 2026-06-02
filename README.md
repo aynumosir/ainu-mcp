@@ -67,7 +67,11 @@ AINU_ROOT=/home/mkpoli/projects/Ainu uv run python etl/build_d1.py
 - `ainu-corpora/data.jsonl`
 - `ainu-dictionaries/<dict-name>/*.tsv`
 - `ainu-grammar/{books,articles}/...`
-- `ainu-stopwords/ainu-stopwords.txt` (optional — only the stopword/frequency tools use it; absent ⇒ empty stopword list)
+
+(The stopword list from [`aynumosir/ainu-stopwords`](https://github.com/aynumosir/ainu-stopwords)
+is public, so the ETL fetches it from GitHub automatically — no checkout needed.
+A local `ainu-stopwords/ainu-stopwords.txt` under `AINU_ROOT`, if present, is
+used instead.)
 
 The seed is applied to D1 with `wrangler d1 execute` (see
 [`docs/REFRESHING-DATA.md`](docs/REFRESHING-DATA.md)). A scheduled GitHub Action
