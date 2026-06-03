@@ -1,0 +1,53 @@
+name: CI
+
+# Typecheck + unit tests on every PR and on pushes to main. (Production deploys
+# are handled by Cloudflare Workers Builds; the D1/Turso data refresh by
+# refresh-reference-data.yml — neither runs typecheck/tests, so this fills the gap.)
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  worker:
+    name: worker (typecheck + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      # `bun test` errors if zero test files match, so only run it when some
+      # exist (keeps CI green before/after the first test lands).
+      - run: |
+          if find . -path ./node_modules -prune -o -name '*.test.*' -print | grep -q .; then
+            bun test
+          else
+            echo "no test files — skipping"
+          fi
+
+  python:
+    name: python (compile)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          # Pinned here, not via a root .python-version (that file makes
+          # Cloudflare Workers Builds install Python on every Worker deploy).
+          python-version: "3.13"
+      - run: uv sync --frozen
+      # Byte-compile the ETL + loaders (catches syntax errors) without needing
+      # AINU_ROOT data or network.
+      - run: uv run python -m compileall -q src etl
