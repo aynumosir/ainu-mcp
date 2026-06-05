@@ -1,4 +1,4 @@
--- ainu-mcp D1 schema.
+-- ainu-mcp Turso (libSQL) schema.
 --
 -- Search strategy: every substring search in the original Python (`q in text`)
 -- is reproduced with SQLite FTS5 + the `trigram` tokenizer, which indexes every

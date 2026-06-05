@@ -17,8 +17,9 @@ loader (see worker/README.md / docs/REFRESHING-DATA.md):
     TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... \\
       bun scripts/load-turso.mjs seed/reset.sql $(... seed/MANIFEST.txt ...)
 
-(The filename `build_d1.py` is kept for import stability; it builds the seed for
-Turso now, not Cloudflare D1.)
+(The filename `build_d1.py` is a historical name — it builds the seed for Turso
+(libSQL) now, not Cloudflare D1. Kept as-is to avoid churning the ~dozen doc and
+workflow path references; the script is invoked directly, never imported.)
 
 Run from the repo root:
 
@@ -44,16 +45,17 @@ DATA_DIR = SEED_DIR / "data"
 
 # Rows per multi-row INSERT statement (upper bound for small rows).
 BATCH = 200
-# Max bytes per INSERT statement. Cloudflare D1 caps a single SQL statement at
-# 100 KB, so we keep every statement well under that.
+# Max bytes per INSERT statement. Originally D1's 100 KB single-statement cap;
+# retained as a conservative bound so the batched libSQL loader (load-turso.mjs,
+# 50 statements per transaction) keeps each request well within libSQL's limits.
 MAX_STMT_BYTES = 90_000
 # Max UTF-8 BYTES per text chunk (rows / append-updates). Must be by bytes, not
-# chars: D1's 100 KB statement cap is in bytes, and CJK text is ~3 bytes/char.
+# chars: the per-statement bound above is in bytes, and CJK text is ~3 bytes/char.
 # 35 KB leaves headroom for quote-escaping + the INSERT/UPDATE prefix.
 TEXT_CHUNK = 35_000
 GRAMMAR_OVERLAP = 200  # overlap (chars) between grammar chunks to avoid boundary misses
-# Rows per chunk file (keeps a single `wrangler d1 execute` near the Free-plan
-# 100k-writes/day ceiling so the seed can be applied incrementally).
+# Rows per chunk file: bounds each seed file's size so the loader's readFileSync
+# + per-file batching stay memory-bounded and give progress/restart granularity.
 CHUNK_ROWS = 50_000
 # Vocabulary-gap candidates are stored down to this corpus frequency so the
 # runtime tool can honor a `min_count` as low as this without a corpus scan.
@@ -98,7 +100,7 @@ def chunk_text(s: str, max_bytes: int = TEXT_CHUNK, overlap_chars: int = 0) -> l
 
 def append_updates(table: str, id_val: int, col: str, text: str) -> list[str]:
     """UPDATE statements that append `text` to `table.col` in <=TEXT_CHUNK pieces
-    (keyed by id). Lets us store a value larger than the 100 KB statement cap."""
+    (keyed by id). Lets us store a value larger than the per-statement byte bound."""
     return [
         f"UPDATE {table} SET {col} = {col} || {q(piece)} WHERE id = {id_val};"
         for piece in chunk_text(text, TEXT_CHUNK)
@@ -261,9 +263,10 @@ def build_dictionaries() -> tuple[list[str], dict[str, int]]:
     entries_w.close()
 
     # Rebuild the external-content FTS index from dict_entries, CHUNKED by id
-    # range: a single INSERT...SELECT would write ~284k FTS rows atomically,
-    # blowing the Free-plan 100k-writes/day budget. Each chunk's statement text
-    # is tiny (it's a SELECT, not literals), so the 100KB cap is irrelevant.
+    # range: a single INSERT...SELECT would rebuild ~284k FTS rows in one
+    # transaction. Chunking keeps each libSQL transaction bounded. Each chunk's
+    # statement text is tiny (it's a SELECT, not literals), so the per-statement
+    # byte bound doesn't apply here — only the row volume does.
     max_id = next_id - 1
     fts_files: list[str] = []
     fi = 0
