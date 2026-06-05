@@ -13,7 +13,7 @@ import type { AuthRequest, OAuthHelpers } from "@cloudflare/workers-oauth-provid
 import type { Env, Props } from "./types.js";
 import { LANDING_HTML, LLMS_TXT, renderErrorPage } from "./landing.js";
 import { LibsqlDb } from "./libsql.js";
-import { getMeta } from "./db.js";
+import { healthStatus } from "./health.js";
 
 const GITHUB_AUTHORIZE = "https://github.com/login/oauth/authorize";
 const GITHUB_TOKEN = "https://github.com/login/oauth/access_token";
@@ -55,14 +55,9 @@ app.get("/llms.txt", (c) => c.text(LLMS_TXT));
 // logged server-side. Always no-store so monitors never get a cached verdict.
 app.get("/health", async (c) => {
   c.header("Cache-Control", "no-store");
-  try {
-    const db = new LibsqlDb(c.env.DATABASE_URL, c.env.DATABASE_AUTH_TOKEN) as unknown as D1Database;
-    const loaded = (await getMeta(db, "corpus_stats")) != null;
-    return c.json({ status: loaded ? "ok" : "degraded", store: "turso", data_loaded: loaded }, loaded ? 200 : 503);
-  } catch (err) {
-    console.error("Health check failed:", err);
-    return c.json({ status: "error", store: "turso" }, 503);
-  }
+  const db = new LibsqlDb(c.env.DATABASE_URL, c.env.DATABASE_AUTH_TOKEN) as unknown as D1Database;
+  const { body, http } = await healthStatus(db);
+  return c.json(body, http);
 });
 
 function encodeState(info: AuthRequest): string {
