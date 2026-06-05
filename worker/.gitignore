@@ -10,7 +10,7 @@ dist/
 # Generated binding types
 worker-configuration.d.ts
 
-# Generated D1 seed (build with: uv run python etl/build_d1.py)
+# Generated Turso (libSQL) seed (build with: uv run python etl/build_d1.py)
 seed/data/
 seed/MANIFEST.txt
 seed/*.db

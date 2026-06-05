@@ -1,7 +1,7 @@
 [project]
 name = "ainu-mcp"
 version = "0.1.0"
-description = "Python ETL that builds the D1 reference data for the hosted ainu-mcp Worker"
+description = "Python ETL that builds the Turso (libSQL) reference data for the hosted ainu-mcp Worker"
 authors = [
     { name = "mkpoli", email = "git@mkpo.li" }
 ]
