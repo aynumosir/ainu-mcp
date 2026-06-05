@@ -1,4 +1,4 @@
-/** Corpus search (port of ainu_mcp/corpus.py) — FTS5 trigram over D1. */
+/** Corpus search (port of ainu_mcp/corpus.py) — FTS5 trigram over Turso (libSQL). */
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Env } from "../types.js";

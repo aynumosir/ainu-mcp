@@ -24,11 +24,13 @@ const MOREU = `<svg class="moreu" viewBox="0 0 200 24" aria-hidden="true" preser
 </svg>`;
 
 const TOOLS = [
-  ["Corpus", "corpus_search · corpus_stats", "Search ~195k aligned Ainu/Japanese sentences by text, translation, dialect, or author."],
+  ["Corpus", "corpus_search · corpus_stats · word_frequency", "Search ~195k aligned Ainu/Japanese sentences and rank token frequencies (with stopwords from ainu-stopwords)."],
   ["Dictionaries", "dictionary_lookup · reverse_lookup · list", "Look up words across 80+ dictionaries (Kayano, Tamura, Chiri, Nakagawa, Ota…)."],
   ["Grammar", "grammar_search · grammar_list", "Search the grammar bibliography and full text of transcribed sources."],
+  ["Morphemes", "morpheme_decompose · morpheme_search · lexeme_search", "Decompose words into morphemes and search the morpheme/lexeme banks (mdb.aynu.org)."],
   ["Scripts", "convert_script · detect_script · script_all", "Convert Ainu between Latin, Katakana, and Cyrillic (ainconv)."],
   ["Glossary", "glossary_search · add · update · audit", "Read and edit the Itak-uoeroskip glossary (itak.aynu.org) at its source."],
+  ["Sources", "sources_search · source_get · add · update", "Search and edit the textual-sources catalogue (db.aynu.org)."],
   ["Research", "entry_research", "One call composing scripts + glossary + dictionaries + corpus for a word."],
 ];
 
@@ -197,7 +199,7 @@ URL: ${ENDPOINT}</pre>
 
   <section id="tools">
     <div class="sec-head"><h2>What it can do</h2>
-      <p>19 tools across six families, served from one place.</p></div>
+      <p>31 tools across eight families, served from one place.</p></div>
     <div class="grid">
       ${toolCards()}
     </div>
@@ -329,8 +331,8 @@ export const LLMS_TXT = `# ainu-mcp
 
 > A Model Context Protocol (MCP) server for the Ainu language. One endpoint
 > exposes corpus search + word frequencies, multi-dictionary lookup, grammar
-> references, script conversion, and read/write access to the Itak-uoeroskip
-> glossary.
+> references, morpheme/lexeme decomposition, script conversion, the textual-
+> sources catalogue, and read/write access to the Itak-uoeroskip glossary.
 
 Endpoint (Streamable HTTP): ${ENDPOINT}
 Transport: MCP over Streamable HTTP (legacy SSE at /sse)
@@ -357,6 +359,9 @@ A browser GitHub sign-in happens once; the token is stored and reused.
 - dictionary_reverse_lookup(aynu, dicts?, limit?) — Ainu form -> Japanese/English glosses (exact then substring)
 - grammar_list(kind?) — list grammar books/articles
 - grammar_search(query, include_transcribed?, limit?) — filename/title/author + transcribed-fulltext search
+- morpheme_decompose(word, mode=nested|flat|first) — decompose an Ainu word into morphemes (mdb.aynu.org); known lemmas resolve directly, unknown forms fall back to greedy-longest segmentation
+- morpheme_search(query, limit?) — search the morpheme inventory (mdb.aynu.org) by lemma, allomorph, or gloss; returns category, glosses, frequency, verified flag
+- lexeme_search(query, limit?) — search the lexeme bank (語彙素層, mdb.aynu.org) by lemma, kana, or gloss; returns POS, glosses, dialects, linked morpheme ids
 - sources_search(query?, category?, type?, region?, language?, limit?) — search the textual-sources catalogue (db.aynu.org)
 - source_get(slug) — full detail for one source (bibliographic record + persons/places/institutions/links/relations/tags)
 - convert_script(text, from_script, to_script) — convert between latn/kana/cyrl

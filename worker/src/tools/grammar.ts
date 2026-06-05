@@ -56,7 +56,7 @@ export function registerGrammarTools(server: McpServer, env: Env): void {
       const nameHits = (await grammarFilenameSearch(env.DB, q, limit)).map(materialOut);
       let transcribedHits: { path: string; snippets: string[] }[] = [];
       if (include_transcribed) {
-        // Transcribed content is chunked across rows (same path) in D1, so fetch
+        // Transcribed content is chunked across rows (same path) in Turso, so fetch
         // extra rows and regroup into up to `limit` distinct files, each with up
         // to 3 deduped snippets.
         const rows = await grammarTranscribedSearch(env.DB, q, Math.max(limit * 5, 50));

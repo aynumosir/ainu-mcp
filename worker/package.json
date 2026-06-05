@@ -2,17 +2,15 @@
   "name": "ainu-mcp-worker",
   "version": "0.1.0",
   "private": true,
-  "description": "Hosted Cloudflare Worker for the Ainu-language MCP server (GitHub-OAuth gated, D1-backed)",
+  "description": "Hosted Cloudflare Worker for the Ainu-language MCP server (GitHub-OAuth gated, Turso/libSQL reference store)",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
     "cf-typegen": "wrangler types",
-    "db:migrate:local": "wrangler d1 migrations apply ainu-mcp --local",
-    "db:migrate:remote": "wrangler d1 migrations apply ainu-mcp --remote",
-    "db:seed:local": "wrangler d1 execute ainu-mcp --local --file=./seed/seed.sql",
-    "db:seed:remote": "wrangler d1 execute ainu-mcp --remote --file=./seed/seed.sql"
+    "db:migrate": "turso db shell ainu-mcp < migrations/0001_init.sql && turso db shell ainu-mcp < migrations/0002_frequency.sql",
+    "db:load": "bun scripts/load-turso.mjs seed/reset.sql $(grep -oE 'seed/data/[A-Za-z0-9_./-]+\\.sql' seed/MANIFEST.txt)"
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "^0.7.0",

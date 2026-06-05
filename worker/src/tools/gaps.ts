@@ -1,7 +1,7 @@
 /** Vocabulary-gap worklist (port of ainu_mcp/gaps.py).
  *
  * The expensive part (corpus token frequencies + dictionary attestation +
- * samples) is precomputed into the `vocab_candidates` D1 table by the ETL. Only
+ * samples) is precomputed into the `vocab_candidates` Turso (libSQL) table by the ETL. Only
  * the live glossary-membership subtraction happens here. */
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
