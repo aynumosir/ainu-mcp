@@ -1,5 +1,8 @@
 /**
- * D1 query helpers.
+ * Query helpers for the Turso (libSQL) reference store.
+ *
+ * Types are still `D1Database`-shaped: `src/libsql.ts` presents the D1
+ * `prepare/bind/all/first` API over libSQL, so these helpers are unchanged.
  *
  * Every substring search reproduces the original Python `q in text.lower()`
  * semantics using FTS5 + the trigram tokenizer (case-insensitive, substring,

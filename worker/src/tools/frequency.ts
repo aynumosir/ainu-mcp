@@ -1,7 +1,7 @@
 /** Word frequency + stopwords (port of ainu_mcp/frequency.py + stopwords.py).
  *
  * The corpus token counts + stopword flags are precomputed into the `token_freq`
- * and `stopwords` D1 tables by the ETL, so these tools never scan the corpus.
+ * and `stopwords` Turso (libSQL) tables by the ETL, so these tools never scan the corpus.
  * Only the query word is normalized here — with the SAME rules as the ETL
  * (ainu_mcp.gaps._normalize) so `ku=nukar` and `nukar` resolve together. */
 import { z } from "zod";
