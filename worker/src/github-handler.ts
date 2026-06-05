@@ -12,6 +12,8 @@ import { Hono } from "hono";
 import type { AuthRequest, OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import type { Env, Props } from "./types.js";
 import { LANDING_HTML, LLMS_TXT, renderErrorPage } from "./landing.js";
+import { LibsqlDb } from "./libsql.js";
+import { getMeta } from "./db.js";
 
 const GITHUB_AUTHORIZE = "https://github.com/login/oauth/authorize";
 const GITHUB_TOKEN = "https://github.com/login/oauth/access_token";
@@ -44,6 +46,24 @@ app.onError((err, c) => {
 // Public pages (everything else here is the OAuth flow).
 app.get("/", (c) => c.html(LANDING_HTML));
 app.get("/llms.txt", (c) => c.text(LLMS_TXT));
+
+// Unauthenticated liveness/readiness probe for uptime monitors. Pings the Turso
+// reference store with a cheap precomputed-`meta` lookup, which confirms both
+// connectivity AND that the reference data is loaded (an empty/half-reseeded DB
+// returns `degraded`, not `ok`). The response intentionally carries NO error
+// detail — a libSQL failure can echo the database URL, so the cause is only
+// logged server-side. Always no-store so monitors never get a cached verdict.
+app.get("/health", async (c) => {
+  c.header("Cache-Control", "no-store");
+  try {
+    const db = new LibsqlDb(c.env.DATABASE_URL, c.env.DATABASE_AUTH_TOKEN) as unknown as D1Database;
+    const loaded = (await getMeta(db, "corpus_stats")) != null;
+    return c.json({ status: loaded ? "ok" : "degraded", store: "turso", data_loaded: loaded }, loaded ? 200 : 503);
+  } catch (err) {
+    console.error("Health check failed:", err);
+    return c.json({ status: "error", store: "turso" }, 503);
+  }
+});
 
 function encodeState(info: AuthRequest): string {
   return btoa(JSON.stringify(info)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");

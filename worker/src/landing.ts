@@ -338,6 +338,8 @@ Endpoint (Streamable HTTP): ${ENDPOINT}
 Transport: MCP over Streamable HTTP (legacy SSE at /sse)
 Auth: OAuth 2.1 — "Sign in with GitHub". Unauthenticated requests get 401 with
   WWW-Authenticate pointing at the OAuth metadata, which MCP clients follow.
+Health: GET /health (no auth) → JSON {status: ok|degraded|error}; 200 when the
+  Turso reference store is reachable and seeded, 503 otherwise.
 
 ## Access
 - Any authenticated GitHub user: read/reference tools.
