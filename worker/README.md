@@ -140,6 +140,21 @@ https://ainu-mcp.<your-subdomain>.workers.dev/mcp
 The client opens a browser for "Sign in with GitHub" once, then stores the token
 and uses every tool transparently. Org members additionally see the write tools.
 
+## Health check
+
+`GET /health` (no auth) is a liveness/readiness probe for uptime monitors. It
+pings the Turso reference store with a cheap precomputed-`meta` lookup and returns
+JSON:
+
+```
+200  {"status":"ok","store":"turso","data_loaded":true}        reachable + seeded
+503  {"status":"degraded","store":"turso","data_loaded":false}  reachable, not seeded
+503  {"status":"error","store":"turso"}                          unreachable
+```
+
+The response carries no error detail (a libSQL failure can echo the database
+URL); the cause is logged server-side only.
+
 ## Local development
 
 ```bash
