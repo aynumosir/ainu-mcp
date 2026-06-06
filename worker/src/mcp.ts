@@ -22,6 +22,7 @@ import { registerGlossaryReadTools, registerGlossaryWriteTools } from "./tools/g
 import { registerMorphemeTools } from "./tools/morpheme.js";
 import { registerSourcesTools, registerSourcesWriteTools } from "./tools/sources.js";
 import { registerLocalizationTools } from "./tools/localizations.js";
+import { registerWikiTools } from "./tools/wiki.js";
 import { registerAuditTool } from "./tools/audit.js";
 import { registerGapsTool } from "./tools/gaps.js";
 import { registerSiteCacheTool } from "./tools/site-cache.js";
@@ -51,6 +52,7 @@ export class AinuMCP extends McpAgent<Env, unknown, Props> {
     registerMorphemeTools(this.server, env);
     registerSourcesTools(this.server, env);
     registerLocalizationTools(this.server, env);
+    registerWikiTools(this.server);
 
     // ── Write + maintenance surface — aynumosir org members only ──
     // (props is undefined only if the OAuth layer is bypassed; treat as read-only.)
