@@ -83,7 +83,11 @@ async function searchSite(site: Site, query: string, limit: number): Promise<unk
   const data = await mwApi(site, { action: "query", list: "search", srsearch, srlimit: String(limit) });
   const hits = ((data.query as Record<string, unknown> | undefined)?.search as SearchHit[] | undefined) ?? [];
   const siteKey = site === SITES.aynuwiki ? "aynuwiki" : "incubator";
-  return hits.map((h) => ({
+  // Defensive: `prefix:` is a search hint, not a hard filter — keep only titles
+  // actually under the site's Ainu prefix (drops cross-language Incubator pages
+  // if the backend ever returns them). A no-op for prefix-less Aynuwiki.
+  const scoped = site.prefix ? hits.filter((h) => h.title.startsWith(site.prefix)) : hits;
+  return scoped.map((h) => ({
     site: siteKey,
     title: h.title,
     snippet: stripHtml(h.snippet ?? ""),
@@ -99,9 +103,9 @@ export function registerWikiTools(server: McpServer): void {
     "wiki_search",
     "Search Ainu-language wiki encyclopedias for articles. `site`: 'aynuwiki' (Aynuwiki — the standalone Ainu wiki at wiki.aynu.org), 'incubator' (the Ainu Wikipedia in the Wikimedia Incubator, articles under the Wp/ain/ prefix), or 'both' (default). Returns matching article titles, a snippet, the article URL, and metadata. Pass a title + its `site` to wiki_get_page for the full text.",
     {
-      query: z.string(),
+      query: z.string().trim().min(1),
       site: z.enum(["aynuwiki", "incubator", "both"]).default("both"),
-      limit: z.number().int().default(10),
+      limit: z.number().int().min(1).max(50).default(10),
     },
     async ({ query, site, limit }) => {
       try {
@@ -118,7 +122,7 @@ export function registerWikiTools(server: McpServer): void {
     "wiki_get_page",
     "Fetch the full content of one Ainu wiki article. `site`: 'aynuwiki' (wiki.aynu.org) or 'incubator' (Wikimedia Incubator, Wp/ain/). Pass the `title` from wiki_search (for the Incubator the 'Wp/ain/' prefix is added automatically if you omit it). Returns a clean plain-text extract; for template-heavy pages where no extract is available it returns the raw wikitext instead (see `content_format`).",
     {
-      title: z.string(),
+      title: z.string().trim().min(1),
       site: z.enum(["aynuwiki", "incubator"]).default("aynuwiki"),
     },
     async ({ title, site }) => {
