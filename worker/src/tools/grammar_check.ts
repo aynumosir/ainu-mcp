@@ -41,7 +41,7 @@ export function registerGrammarCheckTools(server: McpServer, env: Env): void {
       "4th-person register, number/possession agreement and semantic/fluency errors, YOU (the calling model) should run " +
       "the returned `judge_prompt` to confirm/reject the rule flags and add those LLM-detected flags in the same shape.",
     {
-      text: z.string().min(1),
+      text: z.string().trim().min(1).max(2000),
       dialect: z.enum(["hokkaido"]).default("hokkaido"),
       check_capitalization: z.boolean().default(false),
       use_mdb: z.boolean().default(true).describe("use the morpheme DB for the POS-gated numeral check; set false for a fast, offline rule-only pass"),

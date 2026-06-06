@@ -41,6 +41,11 @@ test("flags detached suffix clitic (arpa =an)", () => {
   expect(classes(checkGrammar("arpa =an"))).toContain("clitic_boundary_spacing");
 });
 
+test("flags a space BEFORE the clitic '=' (ku =nukar), but not when attached", () => {
+  expect(classes(checkGrammar("ku =nukar"))).toContain("clitic_boundary_spacing");
+  expect(classes(checkGrammar("ku=nukar"))).not.toContain("clitic_boundary_spacing");
+});
+
 // ── capitalization is opt-in ──
 test("capitalization off by default, on when enabled", () => {
   expect(classes(checkGrammar("tan pe ne."))).not.toContain("sentence_initial_capitalization");
@@ -48,6 +53,18 @@ test("capitalization off by default, on when enabled", () => {
     (x) => x.error_class === "sentence_initial_capitalization",
   );
   expect(f && f.suggestion.replacement).toBe("T");
+});
+
+const capFlags = (s) =>
+  checkGrammar(s, { checkCapitalization: true }).flags.filter((f) => f.error_class === "sentence_initial_capitalization");
+
+test("a single (soft-wrap) newline is NOT a sentence boundary", () => {
+  expect(capFlags("tan pe\nne wa")).toHaveLength(1); // one sentence, flagged once
+});
+
+test("terminal punctuation and blank lines ARE sentence boundaries", () => {
+  expect(capFlags("tan pe.\nne wa")).toHaveLength(2); // '.' splits
+  expect(capFlags("tan pe\n\nne wa")).toHaveLength(2); // blank line splits
 });
 
 // ── numeral (POS-gated via MDB) ──

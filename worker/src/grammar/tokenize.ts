@@ -27,12 +27,19 @@ export function tokenize(text: string): Token[] {
 }
 
 /** Split into sentences with offsets — used by the capitalization rule. A
- * sentence ends at . ! ? 。！？ or a blank line. */
+ * sentence ends at terminal punctuation (. ! ? 。！？) or a BLANK line (\n\n…); a
+ * single newline (soft wrap) stays inside the sentence, so wrapped lines don't
+ * create false sentence boundaries. start = offset of the segment in `text`. */
 export function sentences(text: string): { text: string; start: number }[] {
   const out: { text: string; start: number }[] = [];
-  const re = /[^.!?。！？\n]+/g;
-  for (const m of text.matchAll(re)) {
-    if (m[0].trim()) out.push({ text: m[0], start: m.index ?? 0 });
+  const sep = /[.!?。！？]+|\n[ \t]*\n\s*/g;
+  let last = 0;
+  for (const m of text.matchAll(sep)) {
+    const seg = text.slice(last, m.index ?? 0);
+    if (seg.trim()) out.push({ text: seg, start: last });
+    last = (m.index ?? 0) + m[0].length;
   }
+  const tail = text.slice(last);
+  if (tail.trim()) out.push({ text: tail, start: last });
   return out;
 }
