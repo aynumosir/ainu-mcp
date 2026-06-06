@@ -15,12 +15,14 @@ The reference store is **Turso** (libSQL) — it moved off Cloudflare D1 when th
 D1 Free-plan per-database size cap (~500 MB) blocked writes at ~615 MB. The
 Worker reads it through a libSQL shim (`worker/src/libsql.ts`).
 
-Only the Turso snapshot can go stale. It changes only when the upstream
+Only the Turso snapshot can go stale. It changes when the upstream
 [`aynumosir/ainu-corpora`](https://github.com/aynumosir/ainu-corpora),
 [`aynumosir/ainu-dictionaries`](https://github.com/aynumosir/ainu-dictionaries),
 and [`aynumosir/ainu-grammar`](https://github.com/aynumosir/ainu-grammar) repos
-do. The [`refresh-reference-data`](../.github/workflows/refresh-reference-data.yml)
-workflow keeps it current automatically.
+do, or when any of the localization upstreams gathered by
+`src/ainu_mcp/localizations.py` (the `l10n_*` tables) change. The
+[`refresh-reference-data`](../.github/workflows/refresh-reference-data.yml)
+workflow keeps it current automatically on the same monthly cycle.
 
 ## What the workflow does
 

@@ -116,10 +116,13 @@ jobs:
           # failed fetch must abort here (before prod is touched) rather than
           # silently reseed an empty stopwords table.
           test -s worker/seed/data/stopwords.sql
-          # Localization projects file is always written (one row per curated
-          # repo, even if a repo was unreachable) — its absence means the gather
-          # step crashed.
+          # Localization seed: the projects file (one row per curated repo) and
+          # the first strings chunk are always written when build_localizations()
+          # runs — their absence means the gather step crashed. (Gather is
+          # best-effort per repo, so an individual unreachable repo is tolerated;
+          # these only guard against the whole step not producing its outputs.)
           test -s worker/seed/data/l10n_projects.sql
+          test -s worker/seed/data/l10n_strings_0001.sql
           seed_bytes=$(du -sb worker/seed/data | cut -f1)
           echo "seed/data total: $seed_bytes bytes"
           if [ "$seed_bytes" -lt 20000000 ]; then

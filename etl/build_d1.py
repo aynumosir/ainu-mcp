@@ -507,8 +507,9 @@ def main() -> None:
         + corpus_files      # largest; apply last / spread across days
     )
     (SEED_DIR / "MANIFEST.txt").write_text(
-        "# Reference store is Turso (libSQL). Apply the schema first\n"
-        "# (turso db shell ainu-mcp < migrations/0001_init.sql, then 0002), then\n"
+        "# Reference store is Turso (libSQL). Apply ALL migrations first\n"
+        "# (turso db shell ainu-mcp < migrations/0001_init.sql, then 0002_frequency.sql,\n"
+        "# then 0003_localizations.sql), then\n"
         "# load these files IN THIS ORDER via the batched libSQL loader — e.g.\n"
         "#   cd worker && TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... \\\n"
         "#     bun scripts/load-turso.mjs seed/reset.sql <files below>\n"

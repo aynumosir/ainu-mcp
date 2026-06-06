@@ -141,6 +141,12 @@ def _tree(repo: str, branch: str) -> tuple[str, ...]:
         data = json.loads(raw)
     except ValueError:
         return ()
+    # GitHub truncates very large trees; a partial listing would silently drop
+    # some ain*.json files. Treat truncation like an unreachable repo (skip it
+    # entirely) rather than ingesting an incomplete set. None of the curated
+    # repos are anywhere near the limit, so this is a safety net.
+    if data.get("truncated"):
+        return ()
     return tuple(
         e["path"]
         for e in data.get("tree", [])
