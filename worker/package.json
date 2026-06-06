@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "cf-typegen": "wrangler types",
-    "db:migrate": "turso db shell ainu-mcp < migrations/0001_init.sql && turso db shell ainu-mcp < migrations/0002_frequency.sql",
+    "db:migrate": "turso db shell ainu-mcp < migrations/0001_init.sql && turso db shell ainu-mcp < migrations/0002_frequency.sql && turso db shell ainu-mcp < migrations/0003_localizations.sql",
     "db:load": "bun scripts/load-turso.mjs seed/reset.sql $(grep -oE 'seed/data/[A-Za-z0-9_./-]+\\.sql' seed/MANIFEST.txt)"
   },
   "dependencies": {

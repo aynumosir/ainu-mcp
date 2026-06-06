@@ -288,3 +288,76 @@ export async function isStopword(db: D1Database, normalized: string): Promise<bo
   const row = await db.prepare(`SELECT 1 AS x FROM stopwords WHERE normalized = ? LIMIT 1`).bind(normalized).first<{ x: number }>();
   return row != null;
 }
+
+// ───────────────────────────── Localization (i18n) strings ───────────────────────────── //
+
+export interface L10nRow {
+  project: string;
+  repo: string;
+  file_path: string;
+  lang: string;
+  key: string;
+  text: string;
+  source_text: string | null;
+  source_lang: string | null;
+}
+
+/**
+ * Search software-localization strings (l10n_fts). The trigram MATCH searches
+ * the Ainu text, the source-language original, AND the message key at once;
+ * <3-char queries fall back to a bounded LIKE scan over the same three columns.
+ * Optionally narrow by project (substring on the 'owner/name' slug) and/or an
+ * exact language tag ('ain', 'ain-Latn', …). ORDER BY rowid = source order.
+ */
+export async function localizationSearch(
+  db: D1Database,
+  opts: { query: string; project?: string | null; lang?: string | null; limit: number },
+): Promise<L10nRow[]> {
+  const q = opts.query.trim();
+  if (!q) return [];
+  const select = `SELECT project, repo, file_path, lang, key, text, source_text, source_lang FROM l10n_fts`;
+  const params: unknown[] = [];
+  let where: string;
+
+  if (q.length >= 3) {
+    where = ` WHERE l10n_fts MATCH ?`;
+    params.push(ftsPhrase(q));
+  } else {
+    const pat = likePattern(q.toLowerCase());
+    where = ` WHERE (lower(text) LIKE ? ESCAPE '\\' OR lower(coalesce(source_text,'')) LIKE ? ESCAPE '\\' OR lower(key) LIKE ? ESCAPE '\\')`;
+    params.push(pat, pat, pat);
+  }
+  if (opts.project) {
+    where += ` AND instr(project, ?) > 0`;
+    params.push(opts.project);
+  }
+  if (opts.lang) {
+    where += ` AND lang = ?`;
+    params.push(opts.lang);
+  }
+  const sql = `${select}${where} ORDER BY rowid LIMIT ?`;
+  params.push(clampLimit(opts.limit));
+  const { results } = await db.prepare(sql).bind(...params).all<L10nRow>();
+  return results ?? [];
+}
+
+export interface L10nProject {
+  slug: string;
+  repo: string;
+  title: string | null;
+  description: string | null;
+  url: string | null;
+  format: string;
+  source_lang: string | null;
+  strings: number;
+}
+
+/** All gathered localization projects, most strings first. */
+export async function listLocalizationProjects(db: D1Database): Promise<L10nProject[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT slug, repo, title, description, url, format, source_lang, strings FROM l10n_projects ORDER BY strings DESC, slug`,
+    )
+    .all<L10nProject>();
+  return results ?? [];
+}

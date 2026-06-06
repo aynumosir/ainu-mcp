@@ -7,13 +7,14 @@ etc.) — so the hosted server reads byte-identical data without re-implementing
 any of that logic in TS.
 
 Output: chunked `*.sql` files under `worker/seed/` containing INSERTs that match
-`worker/migrations/0001_init.sql` + `0002_frequency.sql`. The reference store is
-Turso (libSQL); apply the schema then load the seed via the batched libSQL
-loader (see worker/README.md / docs/REFRESHING-DATA.md):
+`worker/migrations/0001_init.sql` + `0002_frequency.sql` + `0003_localizations.sql`.
+The reference store is Turso (libSQL); apply the schema then load the seed via the
+batched libSQL loader (see worker/README.md / docs/REFRESHING-DATA.md):
 
     cd worker
     turso db shell ainu-mcp < migrations/0001_init.sql
     turso db shell ainu-mcp < migrations/0002_frequency.sql
+    turso db shell ainu-mcp < migrations/0003_localizations.sql
     TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... \\
       bun scripts/load-turso.mjs seed/reset.sql $(... seed/MANIFEST.txt ...)
 
@@ -37,7 +38,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable
 
-from ainu_mcp import corpus, dictionaries, gaps, grammar, stopwords
+from ainu_mcp import corpus, dictionaries, gaps, grammar, localizations, stopwords
 from ainu_mcp.config import get_config
 
 SEED_DIR = Path(__file__).resolve().parent.parent / "worker" / "seed"
@@ -432,6 +433,53 @@ def build_meta(corpus_stats: dict[str, Any], counter: Counter[str]) -> list[str]
     return ["meta.sql"]
 
 
+def build_localizations() -> list[str]:
+    """Seed l10n_fts + l10n_projects from real Ainu-language software i18n files
+    (src/ainu_mcp/localizations.py). Fetched live from public GitHub at build
+    time; degrades gracefully (an unreachable repo just contributes 0 strings)."""
+    print("localizations: gathering…")
+    projects, strings = localizations.load()
+    files: list[str] = []
+
+    # strings → l10n_fts (standalone FTS5, same shape as corpus_fts). rowid =
+    # emission order, so ORDER BY rowid is stable.
+    w = ChunkWriter(
+        "l10n_strings",
+        "l10n_fts(text, source_text, key, project, repo, file_path, lang, source_lang)",
+    )
+    for s in strings:
+        w.add(
+            [
+                s["text"],
+                s.get("source_text"),
+                s["key"],
+                s["project"],
+                s["repo"],
+                s["file_path"],
+                s["lang"],
+                s.get("source_lang"),
+            ]
+        )
+    files.extend(w.files)
+    w.close()
+
+    # projects → l10n_projects (always all curated repos, with a string count).
+    path = DATA_DIR / "l10n_projects.sql"
+    with path.open("w", encoding="utf-8") as f:
+        for p in projects:
+            f.write(
+                "INSERT INTO l10n_projects(slug, repo, title, description, url, format, source_lang, strings) VALUES ("
+                f"{q(p['slug'])}, {q(p['repo'])}, {q(p.get('title'))}, {q(p.get('description'))}, "
+                f"{q(p.get('url'))}, {q(p['format'])}, {q(p.get('source_lang'))}, {int(p.get('strings', 0))});\n"
+            )
+    files.append("l10n_projects.sql")
+
+    gathered = sum(1 for _ in strings)
+    live = sum(1 for p in projects if p.get("strings"))
+    print(f"localizations: {gathered} strings across {live}/{len(projects)} reachable projects")
+    return files
+
+
 def main() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     manifest: list[str] = []
@@ -444,9 +492,11 @@ def main() -> None:
     token_freq_files = build_token_freq(counter, stop_norm)
     vocab_files = build_vocab_candidates(counter, sample, stop_norm)
     meta_files = build_meta(corpus_stats, counter)
+    l10n_files = build_localizations()
 
     # Apply order matters: dict_entries before dict_fts rebuild. token_freq /
-    # stopwords / vocab are independent (no FKs), so their order is free.
+    # stopwords / vocab / localizations are independent (no FKs), so their order
+    # is free.
     manifest = (
         dict_files          # dict_entries_*, dict_fts, dictionaries_list
         + grammar_files
@@ -454,11 +504,13 @@ def main() -> None:
         + token_freq_files
         + vocab_files
         + meta_files
+        + l10n_files
         + corpus_files      # largest; apply last / spread across days
     )
     (SEED_DIR / "MANIFEST.txt").write_text(
-        "# Reference store is Turso (libSQL). Apply the schema first\n"
-        "# (turso db shell ainu-mcp < migrations/0001_init.sql, then 0002), then\n"
+        "# Reference store is Turso (libSQL). Apply ALL migrations first\n"
+        "# (turso db shell ainu-mcp < migrations/0001_init.sql, then 0002_frequency.sql,\n"
+        "# then 0003_localizations.sql), then\n"
         "# load these files IN THIS ORDER via the batched libSQL loader — e.g.\n"
         "#   cd worker && TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... \\\n"
         "#     bun scripts/load-turso.mjs seed/reset.sql <files below>\n"

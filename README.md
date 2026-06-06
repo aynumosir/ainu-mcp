@@ -119,6 +119,13 @@ the row since, the update is refused — re-read and retry.
 | `grammar_list(kind?)` | List grammar books / articles |
 | `grammar_search(query, include_transcribed?, limit?)` | Filename/title/author search + fulltext over transcribed sources |
 
+### Localization (i18n strings)
+
+| Tool | Purpose |
+| --- | --- |
+| `localizations_search(query, project?, lang?, limit?)` | Search how real Ainu-language software has translated its UI — `query` matches the Ainu text, the source-language original, or the message key; filter by `project` slug or `lang` (`ain`, `ain-Latn`, …) |
+| `localizations_list_projects` | List the indexed projects (repo, format, source language, string count) |
+
 ### Script conversion
 
 | Tool | Purpose |
