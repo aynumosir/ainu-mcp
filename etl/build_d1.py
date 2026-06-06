@@ -7,13 +7,14 @@ etc.) — so the hosted server reads byte-identical data without re-implementing
 any of that logic in TS.
 
 Output: chunked `*.sql` files under `worker/seed/` containing INSERTs that match
-`worker/migrations/0001_init.sql` + `0002_frequency.sql`. The reference store is
-Turso (libSQL); apply the schema then load the seed via the batched libSQL
-loader (see worker/README.md / docs/REFRESHING-DATA.md):
+`worker/migrations/0001_init.sql` + `0002_frequency.sql` + `0003_localizations.sql`.
+The reference store is Turso (libSQL); apply the schema then load the seed via the
+batched libSQL loader (see worker/README.md / docs/REFRESHING-DATA.md):
 
     cd worker
     turso db shell ainu-mcp < migrations/0001_init.sql
     turso db shell ainu-mcp < migrations/0002_frequency.sql
+    turso db shell ainu-mcp < migrations/0003_localizations.sql
     TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... \\
       bun scripts/load-turso.mjs seed/reset.sql $(... seed/MANIFEST.txt ...)
 
