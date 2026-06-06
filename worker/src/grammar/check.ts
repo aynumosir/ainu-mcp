@@ -10,15 +10,14 @@ import type { CheckOptions, Dialect, Flag, GrammarCheckResult, Rule } from "./ty
 import { tokenize } from "./tokenize.js";
 import { cliticRule } from "./rules/clitics.js";
 import { capitalizationRule } from "./rules/orthography.js";
+import { numeralMdbRule, type PosLookup } from "./rules/numerals.js";
 
 export const ENGINE_VERSION = "0.1.0";
 
-// Active Phase-1 deterministic rules. Only rules that are SAFE without POS go
-// here. The numeral attributive/counting rule (rules/numerals.ts) is deliberately
-// NOT active: corpus evidence shows the counting form is grammatical pre-verbally
-// ("tup sanke" = bring out two) and post-nominally ("tewki tup"), so flagging it
-// without a POS tagger over-flags real Ainu. It moves to Phase 2 (tagger-gated);
-// meanwhile the tu/tup check is delegated to the Tier-4 judge (see judge_prompt).
+// Pure surface rules (no POS needed). The numeral attributive/counting check is
+// NOT here — it needs a part-of-speech lookup to avoid over-flagging the
+// grammatical pre-verbal ("tup sanke") and post-nominal ("tewki tup") uses, so it
+// runs as a separate POS-gated pass in checkGrammarWithMdb().
 const RULES: Rule[] = [cliticRule, capitalizationRule];
 
 export function checkGrammar(
@@ -39,6 +38,33 @@ export function checkGrammar(
     judge_prompt: buildJudgePrompt(text, flags),
     meta: { tiers_run: ["rule"], engine_version: ENGINE_VERSION },
   };
+}
+
+/**
+ * As checkGrammar(), plus the POS-gated numeral check (counting vs attributive,
+ * e.g. tup→tu before a noun), resolved through `lookup` (the morpheme DB). If the
+ * lookup fails (DB unavailable), it degrades to the rule-only result — the
+ * numeral case then falls to the Tier-4 judge via judge_prompt.
+ */
+export async function checkGrammarWithMdb(
+  text: string,
+  opts: Partial<CheckOptions> | undefined,
+  lookup: PosLookup,
+): Promise<GrammarCheckResult> {
+  const base = checkGrammar(text, opts);
+  let extra: Flag[] = [];
+  const tiers = ["rule"];
+  try {
+    extra = await numeralMdbRule(base.tokens, lookup);
+    tiers.push("mdb");
+  } catch {
+    // MDB unreachable → degrade gracefully to rule-only.
+  }
+  if (!extra.length && tiers.length === 1) return base;
+  const flags = [...base.flags, ...extra].sort(
+    (a, b) => a.span.start - b.span.start || a.span.end - b.span.end,
+  );
+  return { ...base, flags, judge_prompt: buildJudgePrompt(text, flags), meta: { tiers_run: tiers, engine_version: ENGINE_VERSION } };
 }
 
 /** Prompt the calling model uses as the Tier-4 judge. It must confirm/reject the

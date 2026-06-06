@@ -1,37 +1,76 @@
 /**
  * grammar_check — check an Ainu sentence for grammatical / orthographic errors.
  *
- * Phase 1 runs a deterministic rule engine (src/grammar) in the Worker — numeral
- * attributive-vs-counting (tu/tup), clitic boundary + the eci= portmanteau, and
- * opt-in sentence capitalization — and returns offset-anchored flags plus a
- * `judge_prompt`. The Worker makes NO model call: for register / valency /
- * semantic judgments, the CALLING model runs `judge_prompt` itself (free Tier-4
- * judge over MCP). Parser/valency (Tier 2/3) lands in a later phase via a Python
- * sidecar. Read surface — available to all authenticated users.
+ * Deterministic rule engine (src/grammar) run in the Worker:
+ *  - clitic '=' boundary spacing + the eci= portmanteau (pure surface rules);
+ *  - numeral attributive-vs-counting (tu vs tup) — POS-gated via the morpheme DB
+ *    (env.MDB), so it flags "tup cise" → "tu cise" but not the grammatical
+ *    "tewki tup" / "tup sanke" / "kotan tup".
+ *
+ * Returns offset-anchored flags + a `judge_prompt`. The Worker makes NO model
+ * call: valency / argument-marking, 4th-person register, agreement and semantic
+ * checks are listed in `judge_prompt` for the CALLING model to run as Tier-4.
+ * Read surface — available to all authenticated users.
  */
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { checkGrammar } from "../grammar/check.js";
-import { jsonResult } from "./helpers.js";
+import type { Env } from "../types.js";
+import { checkGrammar, checkGrammarWithMdb } from "../grammar/check.js";
+import type { Pos } from "../grammar/rules/numerals.js";
+import { jsonResult, fetchJson } from "./helpers.js";
 
-export function registerGrammarCheckTools(server: McpServer): void {
+const MDB = "https://mdb.aynu.org";
+
+/** Map a morpheme-DB category to a coarse POS. n/nl = noun, v* = verb. */
+function posOfCategory(cat: string | undefined): Pos | null {
+  if (!cat) return null;
+  if (cat === "n" || cat === "nl") return "noun";
+  if (cat.startsWith("v")) return "verb";
+  return "other";
+}
+
+export function registerGrammarCheckTools(server: McpServer, env: Env): void {
   server.tool(
     "grammar_check",
     "Check an Ainu sentence (Hokkaido, Latin orthography) for grammatical and orthographic errors. " +
-      "Phase 1 runs the deterministic rules that are safe without a parser: personal-clitic '=' boundary spacing " +
-      "and the eci= portmanteau (a 1sg subject acting on a 2nd-person object is eci=, not ku=…e=…). " +
-      "Returns offset-anchored flags with suggestions and a `judge_prompt`. " +
-      "IMPORTANT: this tool makes no model call. Checks that need syntactic context — numeral attributive vs counting form " +
-      "(tu vs tup), valency / argument-marking, 4th-person register, number/possession agreement, and semantic/fluency — " +
-      "are listed in the returned `judge_prompt`, which YOU (the calling model) should run to confirm/reject the rule flags " +
-      "and add those LLM-detected flags in the same shape. (Those become deterministic in Phase 2 via a POS tagger.)",
+      "Deterministic checks: personal-clitic '=' boundary spacing, the eci= portmanteau (a 1sg subject acting on a " +
+      "2nd-person object is eci=, not ku=…e=…), and numeral attributive-vs-counting form — e.g. it flags 'tup cise' → " +
+      "'tu cise' (counting form wrongly used before a noun) while leaving grammatical uses like 'tewki tup' (two buckets) " +
+      "and 'tup sanke' (bring out two) alone, using the morpheme DB for part-of-speech. " +
+      "Returns offset-anchored flags + a `judge_prompt`. This tool makes no model call — for valency / argument-marking, " +
+      "4th-person register, number/possession agreement and semantic/fluency errors, YOU (the calling model) should run " +
+      "the returned `judge_prompt` to confirm/reject the rule flags and add those LLM-detected flags in the same shape.",
     {
       text: z.string().min(1),
       dialect: z.enum(["hokkaido"]).default("hokkaido"),
       check_capitalization: z.boolean().default(false),
+      use_mdb: z.boolean().default(true).describe("use the morpheme DB for the POS-gated numeral check; set false for a fast, offline rule-only pass"),
     },
-    async ({ text, dialect, check_capitalization }) => {
-      const result = checkGrammar(text, { dialect, checkCapitalization: check_capitalization });
+    async ({ text, dialect, check_capitalization, use_mdb }) => {
+      const opts = { dialect, checkCapitalization: check_capitalization };
+      if (!use_mdb) return jsonResult(checkGrammar(text, opts));
+      const cache = new Map<string, Pos | null>();
+      const lookup = async (word: string): Promise<Pos | null> => {
+        if (cache.has(word)) return cache.get(word) ?? null;
+        const q = encodeURIComponent(word);
+        // Morpheme inventory first (has `category`); fall back to the lexeme bank
+        // (`pos`) for words that are lexemes/compounds, not bare morphemes.
+        const morph = (await fetchJson(env.MDB, `${MDB}/api/morphemes?q=${q}&limit=5`)) as {
+          results?: { lemma?: string; category?: string }[];
+        };
+        const mr = morph.results ?? [];
+        let pos = posOfCategory((mr.find((r) => (r.lemma ?? "").toLowerCase() === word.toLowerCase()) ?? mr[0])?.category);
+        if (pos === null) {
+          const lex = (await fetchJson(env.MDB, `${MDB}/api/lexemes?q=${q}&limit=5`)) as {
+            results?: { lemma?: string; pos?: string }[];
+          };
+          const lr = lex.results ?? [];
+          pos = posOfCategory((lr.find((r) => (r.lemma ?? "").toLowerCase() === word.toLowerCase()) ?? lr[0])?.pos);
+        }
+        cache.set(word, pos);
+        return pos;
+      };
+      const result = await checkGrammarWithMdb(text, opts, lookup);
       return jsonResult(result);
     },
   );

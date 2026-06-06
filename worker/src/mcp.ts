@@ -54,7 +54,7 @@ export class AinuMCP extends McpAgent<Env, unknown, Props> {
     registerSourcesTools(this.server, env);
     registerLocalizationTools(this.server, env);
     registerWikiTools(this.server);
-    registerGrammarCheckTools(this.server);
+    registerGrammarCheckTools(this.server, env);
 
     // ── Write + maintenance surface — aynumosir org members only ──
     // (props is undefined only if the OAuth layer is bypassed; treat as read-only.)
