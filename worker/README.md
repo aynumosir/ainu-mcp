@@ -99,6 +99,7 @@ cd worker
 # apply the schema, then load the seed via the batched libSQL loader:
 turso db shell ainu-mcp < migrations/0001_init.sql
 turso db shell ainu-mcp < migrations/0002_frequency.sql
+turso db shell ainu-mcp < migrations/0003_localizations.sql
 TURSO_DATABASE_URL=$(turso db show ainu-mcp --url) \
 TURSO_AUTH_TOKEN=$(turso db tokens create ainu-mcp) \
   bun scripts/load-turso.mjs seed/reset.sql $(grep -oE 'seed/data/[A-Za-z0-9_./-]+\.sql' seed/MANIFEST.txt)

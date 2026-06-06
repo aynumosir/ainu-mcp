@@ -23,3 +23,7 @@ DELETE FROM vocab_candidates;
 DELETE FROM token_freq;
 DELETE FROM stopwords;
 DELETE FROM meta;
+-- Localization (i18n) strings. l10n_fts is an ordinary (content) FTS5 table, so a
+-- plain DELETE clears it.
+DELETE FROM l10n_fts;
+DELETE FROM l10n_projects;

@@ -5,7 +5,11 @@ The hosted MCP serves two kinds of data:
 | Data | Source at runtime | Freshness |
 | --- | --- | --- |
 | **Glossary** (`glossary_*`, `entry_research`) | **live Google Sheets** every call | always current — no scheduler needed |
-| **Corpus / dictionaries / grammar / frequency** | **Turso** (libSQL; schema in `worker/migrations`, data built into `worker/seed`) | a snapshot built by `etl/build_d1.py` |
+| **Corpus / dictionaries / grammar / frequency / localizations** | **Turso** (libSQL; schema in `worker/migrations`, data built into `worker/seed`) | a snapshot built by `etl/build_d1.py` |
+
+The **localization** tables (`l10n_*`) are gathered from public GitHub message
+catalogues (inlang / next-intl / MediaWiki) by `src/ainu_mcp/localizations.py`,
+so they refresh on the same monthly cycle — no clone needed.
 
 The reference store is **Turso** (libSQL) — it moved off Cloudflare D1 when the
 D1 Free-plan per-database size cap (~500 MB) blocked writes at ~615 MB. The
@@ -98,6 +102,7 @@ create it and apply the migrations first, then the workflow's reseed populates i
 turso db create ainu-mcp --group default
 turso db shell ainu-mcp < worker/migrations/0001_init.sql
 turso db shell ainu-mcp < worker/migrations/0002_frequency.sql
+turso db shell ainu-mcp < worker/migrations/0003_localizations.sql
 ```
 
 You can also load the data locally without the workflow:

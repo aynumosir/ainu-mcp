@@ -87,6 +87,11 @@ jobs:
         run: uv sync --frozen
 
       - name: Build seed
+        # GITHUB_TOKEN raises the GitHub API rate limit for the localization
+        # gather (src/ainu_mcp/localizations.py fetches public message catalogues
+        # straight from GitHub, like the stopwords list).
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: uv run python etl/build_d1.py
 
       # ───── Safety gate: validate the freshly built data BEFORE touching prod.
@@ -111,6 +116,10 @@ jobs:
           # failed fetch must abort here (before prod is touched) rather than
           # silently reseed an empty stopwords table.
           test -s worker/seed/data/stopwords.sql
+          # Localization projects file is always written (one row per curated
+          # repo, even if a repo was unreachable) — its absence means the gather
+          # step crashed.
+          test -s worker/seed/data/l10n_projects.sql
           seed_bytes=$(du -sb worker/seed/data | cut -f1)
           echo "seed/data total: $seed_bytes bytes"
           if [ "$seed_bytes" -lt 20000000 ]; then
