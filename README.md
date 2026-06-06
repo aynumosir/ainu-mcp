@@ -126,6 +126,17 @@ the row since, the update is refused — re-read and retry.
 | `localizations_search(query, project?, lang?, limit?)` | Search how real Ainu-language software has translated its UI — `query` matches the Ainu text, the source-language original, or the message key; filter by `project` slug or `lang` (`ain`, `ain-Latn`, …) |
 | `localizations_list_projects` | List the indexed projects (repo, format, source language, string count) |
 
+### Aynuwiki (Ainu encyclopedias)
+
+Live access to the two Ainu-language wikis — [Aynuwiki](https://wiki.aynu.org)
+and the [Ainu Wikipedia in the Wikimedia Incubator](https://incubator.wikimedia.org/wiki/Wp/ain/)
+(`Wp/ain/`) — over their MediaWiki APIs (no snapshot; always current).
+
+| Tool | Purpose |
+| --- | --- |
+| `wiki_search(query, site?, limit?)` | Search articles; `site`: `aynuwiki`, `incubator`, or `both` (default) |
+| `wiki_get_page(title, site?)` | Full article text (clean plain-text extract, or raw wikitext for template-heavy pages) |
+
 ### Script conversion
 
 | Tool | Purpose |
