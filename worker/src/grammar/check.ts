@@ -77,7 +77,7 @@ function buildJudgePrompt(text: string, flags: Flag[]): string {
     "Then ADD any errors the surface rules cannot catch, using the same flag shape",
     "{error_class, span:{start,end}, surface, severity, confidence, detected_by:'llm', message, explanation, suggestion}:",
     "- numeral form: a counting form (tup, rep, inep, sinep, …) used ATTRIBUTIVELY before a noun should be the bare attributive form (tu, re, ine, sine, …) — e.g. *tup cise → tu cise. NB the counting form is correct pre-verbally (tup sanke 'bring out two') and post-nominally (tewki tup 'two buckets'), so use the syntactic context;",
-    "- valency / argument-marking: a transitive verb missing its object index, intransitive used transitively, ditransitive under-marking;",
+    "- valency / argument-marking: a transitive verb missing its object index, intransitive used transitively, ditransitive under-marking. NB reflexive yay- / indefinite-object i- verbs are INTRANSITIVE despite a transitive root — e.g. yaynu 'think' is vi (…sekor yaynu, ku=yaynu, yaynu=an; NEVER *a=yaynu+OBJ); the transitive 'think (that)' verb is the separate root ramu (…kuni a=ramu). So flag *a=yaynu / yaynu taking a direct object, and conversely *ramu=an;",
     "- personal-affix agreement and the 4th-person a=/-an vs ku= register in narrative;",
     "- number agreement (suppletive plural verb stems, -pa), obligatory possession on inalienable nouns;",
     "- ye vs e and other real-word confusions; semantics/fluency.",
