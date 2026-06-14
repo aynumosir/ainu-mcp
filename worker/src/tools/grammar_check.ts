@@ -59,13 +59,13 @@ export function registerGrammarCheckTools(server: McpServer, env: Env): void {
           results?: { lemma?: string; category?: string }[];
         };
         const mr = morph.results ?? [];
-        let pos = posOfCategory((mr.find((r) => (r.lemma ?? "").toLowerCase() === word.toLowerCase()) ?? mr[0])?.category);
+        let pos = posOfCategory(mr.find((r) => (r.lemma ?? "").toLowerCase() === word.toLowerCase())?.category);
         if (pos === null) {
           const lex = (await fetchJson(env.MDB, `${MDB}/api/lexemes?q=${q}&limit=5`)) as {
             results?: { lemma?: string; pos?: string }[];
           };
           const lr = lex.results ?? [];
-          pos = posOfCategory((lr.find((r) => (r.lemma ?? "").toLowerCase() === word.toLowerCase()) ?? lr[0])?.pos);
+          pos = posOfCategory(lr.find((r) => (r.lemma ?? "").toLowerCase() === word.toLowerCase())?.pos);
         }
         cache.set(word, pos);
         return pos;

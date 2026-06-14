@@ -41,7 +41,7 @@ export const cliticRule: Rule = (_tokens: Token[], text: string, _opts: CheckOpt
   // (2a) detached prefix clitic — a space on EITHER side of "=": "ku= nukar",
   // "ku =nukar", "ku = nukar". Match broadly, then skip the correctly-attached
   // zero-space case so "ku=nukar" is never flagged.
-  const prefRe = new RegExp(`\\b(${PREFIX.join("|")})\\s*=\\s*(?=[A-Za-zÀ-ÿ])`, "g");
+  const prefRe = new RegExp(`\\b(${PREFIX.join("|")})\\s*=\\s*(?=[A-Za-zÀ-ÿ])`, "gi");
   for (const m of text.matchAll(prefRe)) {
     if (!/\s/.test(m[0])) continue; // attached (ku=nukar) — fine
     const start = m.index ?? 0;
@@ -60,8 +60,9 @@ export const cliticRule: Rule = (_tokens: Token[], text: string, _opts: CheckOpt
   }
 
   // (2b) detached suffix clitic: "nukar =an" / "ek =as"
-  const sufRe = new RegExp(`\\s+=(${SUFFIX.join("|")})\\b`, "g");
+  const sufRe = new RegExp(`\\s*=\\s*(${SUFFIX.join("|")})\\b`, "gi");
   for (const m of text.matchAll(sufRe)) {
+    if (!/\s/.test(m[0])) continue; // attached (arpa=an) — fine
     const start = m.index ?? 0;
     flags.push({
       error_class: "clitic_boundary_spacing",

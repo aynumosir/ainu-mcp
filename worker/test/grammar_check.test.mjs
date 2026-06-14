@@ -41,6 +41,12 @@ test("flags detached suffix clitic (arpa =an)", () => {
   expect(classes(checkGrammar("arpa =an"))).toContain("clitic_boundary_spacing");
 });
 
+test("flags a space AFTER the suffix '=' (arpa= an) and a capitalized prefix (Ku =nukar)", () => {
+  expect(classes(checkGrammar("arpa= an"))).toContain("clitic_boundary_spacing");
+  expect(classes(checkGrammar("Ku =nukar"))).toContain("clitic_boundary_spacing");
+  expect(classes(checkGrammar("arpa=an"))).not.toContain("clitic_boundary_spacing");
+});
+
 test("flags a space BEFORE the clitic '=' (ku =nukar), but not when attached", () => {
   expect(classes(checkGrammar("ku =nukar"))).toContain("clitic_boundary_spacing");
   expect(classes(checkGrammar("ku=nukar"))).not.toContain("clitic_boundary_spacing");
