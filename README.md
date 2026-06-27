@@ -123,7 +123,7 @@ the row since, the update is refused — re-read and retry.
 ### Morphology (possessed / plural / derived forms)
 
 All three morphology tools are thin **proxies to the Ainu Morpheme Database
-forms engine** ([`mdb.aynu.org/api/forms`](https://mdb.aynu.org), over the
+forms engine** ([`mdb.aynu.org/api/forms`](https://mdb.aynu.org/api/forms), over the
 `env.MDB` service binding). The generative engine — possessed-noun forms,
 plural verb forms, and derivations — and its data live in MDB; this server holds
 no morphology copy of its own. The engine is **hybrid + provenanced**: rules

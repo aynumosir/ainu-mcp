@@ -53,7 +53,7 @@ export function registerMorphologyTools(server: McpServer, env: Env): void {
     {
       query: z.string(),
       category: z.enum(["possessed", "plural", "derived"]).optional(),
-      limit: z.number().int().default(20),
+      limit: z.number().int().min(1).max(100).default(20),
     },
     async ({ query, category, limit }) => {
       try {
@@ -71,7 +71,7 @@ export function registerMorphologyTools(server: McpServer, env: Env): void {
     {
       base: z.string(),
       category: z.enum(["possessed", "plural", "derived"]).optional(),
-      limit: z.number().int().default(20),
+      limit: z.number().int().min(1).max(100).default(20),
     },
     async ({ base, category, limit }) => {
       try {

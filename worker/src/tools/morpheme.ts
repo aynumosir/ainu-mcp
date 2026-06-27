@@ -105,7 +105,7 @@ export function registerMorphemeTools(server: McpServer, env: Env): void {
       relation: z.enum(["possessed", "plural", "derived"]).optional(),
       feature: z.string().optional(),
       provenance: z.enum(["rule", "attested", "exception"]).optional(),
-      limit: z.number().int().default(30),
+      limit: z.number().int().min(1).max(100).default(30),
     },
     async ({ lemma, category, relation, feature, provenance, limit }) => {
       try {
