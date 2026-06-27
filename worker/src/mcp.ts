@@ -20,6 +20,7 @@ import { registerScriptTools } from "./tools/script.js";
 import { registerResearchTools } from "./tools/research.js";
 import { registerGlossaryReadTools, registerGlossaryWriteTools } from "./tools/glossary.js";
 import { registerMorphemeTools } from "./tools/morpheme.js";
+import { registerMorphologyTools } from "./tools/morphology.js";
 import { registerSourcesTools, registerSourcesWriteTools } from "./tools/sources.js";
 import { registerLocalizationTools } from "./tools/localizations.js";
 import { registerWikiTools } from "./tools/wiki.js";
@@ -51,6 +52,7 @@ export class AinuMCP extends McpAgent<Env, unknown, Props> {
     registerResearchTools(this.server, env);
     registerGlossaryReadTools(this.server, env);
     registerMorphemeTools(this.server, env);
+    registerMorphologyTools(this.server, env);
     registerSourcesTools(this.server, env);
     registerLocalizationTools(this.server, env);
     registerWikiTools(this.server);
