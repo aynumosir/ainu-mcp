@@ -2,7 +2,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Env } from "../types.js";
-import { corpusSearch } from "../db.js";
+import { corpusSearch } from "../corpus-source.js";
 import { glossarySearch } from "./glossary.js";
 import { lookupEntries } from "./dictionaries.js";
 import { allScripts, separateSyllables } from "./script.js";
@@ -56,7 +56,7 @@ export function registerResearchTools(server: McpServer, env: Env): void {
       const corpusHits: unknown[] = [];
       for (const form of forms) {
         try {
-          const rows = await corpusSearch(env.DB, { query: form, lang: "ain", limit: corpus_limit });
+          const rows = await corpusSearch(env, { query: form, lang: "ain", limit: corpus_limit });
           corpusHits.push(
             ...rows.map((r) => ({
               id: r.id,

@@ -6,7 +6,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Env } from "../types.js";
-import { vocabCandidates } from "../db.js";
+import { vocabCandidates } from "../corpus-source.js";
 import { contentSheetNames, batchReadTabs } from "./glossary.js";
 import { jsonResult } from "./helpers.js";
 
@@ -59,7 +59,7 @@ export function registerGapsTool(server: McpServer, env: Env): void {
     "Surface vocabulary gaps: Ainu tokens that appear >= min_count times in the corpus, are attested in at least one dictionary, and aren't yet in the glossary. Returns top-N candidates with frequency, attesting dictionaries, and a sample sentence for each — use as a worklist for new entries. Note: candidates are precomputed down to a corpus frequency of 5, so min_count below 5 returns the same set as min_count=5.",
     { top_n: z.number().int().default(200), min_count: z.number().int().default(20) },
     async ({ top_n, min_count }) => {
-      const candidates = await vocabCandidates(env.DB, min_count);
+      const candidates = await vocabCandidates(env, min_count);
       const inGlossary = await glossaryAynuIndex(env);
       const results: unknown[] = [];
       for (const c of candidates) {

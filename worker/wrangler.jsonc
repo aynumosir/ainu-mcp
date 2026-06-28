@@ -48,7 +48,11 @@
   // textual-sources tools proxy the read APIs these apps expose.
   "services": [
     { "binding": "MDB", "service": "ainu-mdb" },
-    { "binding": "SOURCES", "service": "ainu-sources" }
+    { "binding": "SOURCES", "service": "ainu-sources" },
+    // Corpus read API (corpus.aynu.org). Corpus search/freq/stopwords/candidates
+    // were extracted here; the corpus-source.ts dispatcher uses this binding when
+    // USE_CORPUS_API === "true", else falls back to the direct env.DB path.
+    { "binding": "CORPUS", "service": "ainu-corpora-api" }
   ],
 
   // Reference data (corpus / dictionaries / grammar / frequency) now lives in
@@ -74,6 +78,10 @@
   "vars": {
     "ALLOWED_ORG": "aynumosir",
     "ALLOWED_USERS": "",
-    "GLOSSARY_SHEET_ID": "1zV0gl4TWV5fkf2r9i_1P1jmH_p7LOzbhZQgm7mPwDdE"
+    "GLOSSARY_SHEET_ID": "1zV0gl4TWV5fkf2r9i_1P1jmH_p7LOzbhZQgm7mPwDdE",
+    // Cutover flag for corpus reads: "true" routes corpus search/freq/stopwords
+    // /candidates through the CORPUS service binding (corpus.aynu.org); any other
+    // value keeps the legacy direct-DB path. Flip to "true" after shadow-testing.
+    "USE_CORPUS_API": "true"
   }
 }

@@ -7,7 +7,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Env } from "../types.js";
-import { tokenFrequency, frequencyList, stopwordsList, isStopword, getMeta } from "../db.js";
+import { tokenFrequency, frequencyList, stopwordsList, isStopword, getMeta } from "../corpus-source.js";
 import { jsonResult } from "./helpers.js";
 
 const STOPWORDS_SOURCE = "aynumosir/ainu-stopwords";
@@ -25,7 +25,7 @@ function normalize(tok: string): string {
 }
 
 async function intMeta(env: Env, key: string): Promise<number | null> {
-  const raw = await getMeta(env.DB, key);
+  const raw = await getMeta(env, key);
   if (raw == null) return null;
   const n = Number(raw);
   return Number.isFinite(n) ? n : null;
@@ -38,8 +38,8 @@ export function registerFrequencyTools(server: McpServer, env: Env): void {
     { word: z.string() },
     async ({ word }) => {
       const normalized = normalize(word);
-      const freq = await tokenFrequency(env.DB, normalized);
-      const stop = freq ? freq.is_stopword : await isStopword(env.DB, normalized);
+      const freq = await tokenFrequency(env, normalized);
+      const stop = freq ? freq.is_stopword : await isStopword(env, normalized);
       return jsonResult({
         word,
         normalized,
@@ -62,7 +62,7 @@ export function registerFrequencyTools(server: McpServer, env: Env): void {
       min_count: z.number().int().default(1),
     },
     async ({ limit, offset, include_stopwords, min_count }) => {
-      const rows = await frequencyList(env.DB, {
+      const rows = await frequencyList(env, {
         limit,
         offset,
         includeStopwords: include_stopwords,
@@ -79,7 +79,7 @@ export function registerFrequencyTools(server: McpServer, env: Env): void {
     "Return the Ainu stopword list from aynumosir/ainu-stopwords — extremely common particles/auxiliaries (ne, wa, kor, …) usually filtered out of frequency and keyword analyses. Returns the words, their count, and the source repo.",
     {},
     async () => {
-      const words = await stopwordsList(env.DB);
+      const words = await stopwordsList(env);
       return jsonResult({ source: STOPWORDS_SOURCE, count: words.length, words });
     },
   );
