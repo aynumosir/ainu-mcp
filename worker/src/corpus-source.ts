@@ -113,3 +113,21 @@ export async function concordance(
     `/v1/concordance?${qs({ q: opts.q, window: opts.window, limit: opts.limit, sort: opts.sort, match: opts.match, dialect: opts.dialect, author: opts.author })}`,
   );
 }
+
+export interface PosLine extends ConcordanceLine {
+  upos: string | null;
+  lemma: string | null;
+}
+
+/** POS-search (incl. adjacency) — corpus API only. */
+export async function posSearch(
+  env: Env,
+  opts: {
+    upos?: string | null; lemma?: string | null; surface?: string | null;
+    next_upos?: string | null; next_surface?: string | null;
+    window?: number; limit?: number; dialect?: string | null; author?: string | null;
+  },
+): Promise<PosLine[]> {
+  if (env.CORPUS == null) throw new Error("posSearch requires the CORPUS service binding");
+  return apiGet<PosLine[]>(env, `/v1/pos?${qs(opts as Record<string, string | number | null | undefined>)}`);
+}
