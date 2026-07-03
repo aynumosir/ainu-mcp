@@ -93,6 +93,10 @@ const optionalSourceFields = {
 };
 
 const SNAKE_TO_CAMEL: Record<string, string> = {
+  // slug is create-only: source_add passes it through verbatim; source_update
+  // destructures its own `slug` (the PATCH target) OUT of args, so an update
+  // body never carries one (renames are deliberate, redirect-recording ops).
+  slug: "slug",
   title: "title", title_en: "titleEn", title_ain: "titleAin", category: "category",
   type: "type", author: "author", year_text: "yearText", year_start: "yearStart",
   year_end: "yearEnd", year_certainty: "yearCertainty", dialect: "dialect", region: "region",
@@ -104,8 +108,8 @@ const SNAKE_TO_CAMEL: Record<string, string> = {
 
 /** Build the ainu-sources SourceInput body from snake_case tool args, including
  * only provided keys (so PATCH leaves omitted fields untouched), and attribute
- * the edit to the connected GitHub user. */
-function buildBody(args: Record<string, unknown>, props: Props): Record<string, unknown> {
+ * the edit to the connected GitHub user. Exported for tests. */
+export function buildBody(args: Record<string, unknown>, props: Props): Record<string, unknown> {
   const body: Record<string, unknown> = {};
   for (const [snake, camel] of Object.entries(SNAKE_TO_CAMEL)) {
     if (args[snake] !== undefined) body[camel] = args[snake];
@@ -113,6 +117,25 @@ function buildBody(args: Record<string, unknown>, props: Props): Record<string, 
   if (args.revision_summary !== undefined) body.revisionSummary = args.revision_summary;
   body.user = { name: props.name || props.login };
   return body;
+}
+
+/**
+ * Unwrap the human-readable message from a sendJson upstream error — the
+ * ainu-sources API answers a rejected write with a JSON `{"message": "…"}`
+ * body (e.g. an explicit slug that is malformed, already taken, or retired
+ * into a permanent redirect), which would otherwise surface as a raw JSON
+ * blob. Non-JSON bodies pass through untouched. Exported for tests.
+ */
+export function upstreamErrorText(e: Error): string {
+  const m = /^(upstream \d+ [^:]*): (.+)$/s.exec(e.message);
+  if (!m) return e.message;
+  try {
+    const parsed = JSON.parse(m[2]) as { message?: unknown };
+    if (parsed && typeof parsed.message === "string") return `${m[1]}: ${parsed.message}`;
+  } catch {
+    /* not JSON (or truncated) — fall through to the raw message */
+  }
+  return e.message;
 }
 
 export function registerSourcesWriteTools(server: McpServer, env: Env, props: Props): void {
@@ -123,6 +146,11 @@ export function registerSourcesWriteTools(server: McpServer, env: Env, props: Pr
       title: z.string(),
       type: z.string().describe("fine type, e.g. dictionary, wordlist, grammar, old-document, book, article, corpus-text"),
       category: z.enum(["primary", "secondary", "corpus"]).describe("classification — choose deliberately (no default)"),
+      slug: z
+        .string()
+        .regex(/^[a-z0-9][a-z0-9-]{1,59}$/)
+        .optional()
+        .describe("explicit slug; must be unique; if omitted the server derives one — prefer supplying a meaningful `year-author-shorttitle` slug for Japanese-titled sources"),
       ...optionalSourceFields,
     },
     async (args) => {
@@ -135,7 +163,9 @@ export function registerSourcesWriteTools(server: McpServer, env: Env, props: Pr
         });
         return jsonResult(data);
       } catch (e) {
-        return errorResult(`source_add failed: ${(e as Error).message}`);
+        // upstreamErrorText unwraps the API's JSON error body so a slug
+        // rejection ("already taken…" / "retired…") reads cleanly.
+        return errorResult(`source_add failed: ${upstreamErrorText(e as Error)}`);
       }
     },
   );
