@@ -35,6 +35,8 @@ _SKIP_DIRS = {"schemas", "__pycache__"}
 # If set, only this file is loaded (not all *.tsv).
 _PREFERRED_FILE: dict[str, str] = {
     "2022_Ota_Japanese-Ainu_Dictionary": "reversed.tsv",
+    # headwords only — original.tsv mixes entries with example sentences
+    "2000_Komatsu_Samani-Ainu-Vocabulary": "entries.tsv",
 }
 
 # Per-dictionary column renames: directory name → {file column → canonical key}.
@@ -57,6 +59,10 @@ _COLUMN_ALIASES: dict[str, dict[str, str]] = {
     # Chiba's Mukawa-Dialect dict already uses `lemma` + `translation`.
     "XXXX_Chiba_Mukawa-Dialect-Japanese-Ainu-Dictionary": {
         "translation": "definition",
+    },
+    "2000_Komatsu_Samani-Ainu-Vocabulary": {
+        "latin": "lemma",
+        "gloss_ja": "definition",
     },
 }
 
