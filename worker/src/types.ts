@@ -20,11 +20,13 @@ export interface Env {
   // no public hop. Their apps own the data + logic; we proxy read endpoints.
   MDB: Fetcher; // ainu-mdb — morpheme/lexeme explorer + decompose API (mdb.aynu.org)
   SOURCES: Fetcher; // ainu-sources — textual sources database (db.aynu.org)
+  CORPUS: Fetcher; // ainu-corpora-api — corpus search/freq/concordance/POS (corpus.aynu.org)
 
   // Plain vars
   ALLOWED_ORG: string; // GitHub org whose members get write/maintenance tools
   ALLOWED_USERS: string; // comma-separated GitHub logins granted the same, in addition to the org
   GLOSSARY_SHEET_ID: string;
+  USE_CORPUS_API: string; // "true" → corpus reads via CORPUS binding; else direct env.DB
 
   // Secrets (wrangler secret put)
   GITHUB_CLIENT_ID: string;

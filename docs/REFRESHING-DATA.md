@@ -18,17 +18,20 @@ Worker reads it through a libSQL shim (`worker/src/libsql.ts`).
 Only the Turso snapshot can go stale. It changes when the upstream
 [`aynumosir/ainu-corpora`](https://github.com/aynumosir/ainu-corpora),
 [`aynumosir/ainu-dictionaries`](https://github.com/aynumosir/ainu-dictionaries),
-and [`aynumosir/ainu-grammar`](https://github.com/aynumosir/ainu-grammar) repos
-do, or when any of the localization upstreams gathered by
+and [`aynumosir/ainu-grammar`](https://github.com/aynumosir/ainu-grammar) repos do; when the vendored `src/ainu_mcp/data/authored_grammar_texts.json` snapshot is updated from `aynumosir/ainu-grammar-hokkaido` / `mkpoli/ainu-itah`; or when any of the localization upstreams gathered by
 `src/ainu_mcp/localizations.py` (the `l10n_*` tables) change. The
 [`refresh-reference-data`](../.github/workflows/refresh-reference-data.yml)
 workflow keeps it current automatically on the same monthly cycle.
+
+## Project-authored grammar fast refresh
+
+For pushes to `ainu-grammar-hokkaido` or `aynu-itah`, use the smaller authored-grammar refresh path documented in [`AUTHORED-GRAMMAR-REFRESH.md`](AUTHORED-GRAMMAR-REFRESH.md). It updates only the vendored authored grammar snapshot and the `hokkaido`/`sakhalin` rows in Turso, rather than rebuilding the full corpus/dictionary reference store.
 
 ## What the workflow does
 
 Monthly (and on demand), it:
 
-1. Clones the three private data repos.
+1. Clones the private data repos. The public authored Hokkaido/Sakhalin grammar text comes from the committed snapshot unless those sibling repos are present locally.
 2. Builds `ainu-corpora/data.jsonl` with the Rust builder (`cargo run`) — that
    file is a build artifact, not committed.
 3. Runs the Python ETL (`etl/build_d1.py`) to regenerate `worker/seed/`.
@@ -70,7 +73,7 @@ run, add a tiny workflow to each upstream repo that fires a `repository_dispatch
 at this repo:
 
 ```yaml
-# in aynumosir/ainu-corpora (and ainu-dictionaries, ainu-grammar)
+# in aynumosir/ainu-corpora (and ainu-dictionaries, ainu-grammar; update this repo’s authored_grammar_texts.json snapshot when grammar-site source changes)
 on:
   push:
     branches: [main]
@@ -105,6 +108,7 @@ turso db create ainu-mcp --group default
 turso db shell ainu-mcp < worker/migrations/0001_init.sql
 turso db shell ainu-mcp < worker/migrations/0002_frequency.sql
 turso db shell ainu-mcp < worker/migrations/0003_localizations.sql
+turso db shell ainu-mcp < worker/migrations/0004_grammar_public_text.sql
 ```
 
 You can also load the data locally without the workflow:

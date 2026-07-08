@@ -7,7 +7,7 @@ etc.) — so the hosted server reads byte-identical data without re-implementing
 any of that logic in TS.
 
 Output: chunked `*.sql` files under `worker/seed/` containing INSERTs that match
-`worker/migrations/0001_init.sql` + `0002_frequency.sql` + `0003_localizations.sql`.
+`worker/migrations/0001_init.sql` + later migrations.
 The reference store is Turso (libSQL); apply the schema then load the seed via the
 batched libSQL loader (see worker/README.md / docs/REFRESHING-DATA.md):
 
@@ -15,6 +15,7 @@ batched libSQL loader (see worker/README.md / docs/REFRESHING-DATA.md):
     turso db shell ainu-mcp < migrations/0001_init.sql
     turso db shell ainu-mcp < migrations/0002_frequency.sql
     turso db shell ainu-mcp < migrations/0003_localizations.sql
+    turso db shell ainu-mcp < migrations/0004_grammar_public_text.sql
     TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... \\
       bun scripts/load-turso.mjs seed/reset.sql $(... seed/MANIFEST.txt ...)
 
@@ -301,22 +302,70 @@ def build_grammar() -> list[str]:
     root = cfg.grammar_dir
     files: list[str] = []
 
-    # Bibliography metadata (books + articles, pdf/md/txt).
+    # Bibliography metadata (books + articles, pdf/md/txt) plus project-authored
+    # Hokkaido/Sakhalin grammar chapters whose complete plain text is public.
     mats = grammar._walk_materials()
-    mats_path = DATA_DIR / "grammar_materials.sql"
-    mw = ChunkWriter("grammar_materials", "grammar_materials(kind, path, filename, year, author, title)")
+    mw = ChunkWriter(
+        "grammar_materials",
+        "grammar_materials(source, kind, path, filename, year, author, title, summary, part, variant, license, plain_text_available)",
+    )
     for m in mats:
-        mw.add([m.get("kind"), m.get("path"), m.get("filename"), m.get("year"), m.get("author"), m.get("title")])
+        mw.add(
+            [
+                m.get("source") or "ainu-grammar",
+                m.get("kind"),
+                m.get("path"),
+                m.get("filename"),
+                m.get("year"),
+                m.get("author"),
+                m.get("title"),
+                m.get("summary"),
+                m.get("part"),
+                m.get("variant"),
+                m.get("license"),
+                1 if m.get("plain_text_available") else 0,
+            ]
+        )
     files.extend(mw.files)
     mw.close()
 
-    # Transcribed fulltext: every md/txt under the grammar root (mirrors
-    # ainu_mcp.grammar._scan_transcribed's traversal set). Files larger than the
-    # statement cap are split into overlapping chunks (multiple rows, same
-    # path); grammar.ts regroups hits by path. Overlap avoids missing matches
-    # that straddle a chunk boundary.
-    gw = ChunkWriter("grammar_fts", "grammar_fts(content, path)")
+    # Fulltext: every md/txt under the legacy grammar root (snippet search only)
+    # plus the project-authored Hokkaido/Sakhalin grammar chapters (snippet search
+    # AND full-chapter retrieval via grammar_get_text). Files larger than the
+    # statement cap are split into overlapping chunks (multiple rows, same path);
+    # grammar.ts regroups hits by path. Project-authored chapters are kept as
+    # single rows when possible so grammar_get_text can return the complete text.
+    gw = ChunkWriter(
+        "grammar_fts",
+        "grammar_fts(content, path, source, kind, title, summary, part, variant, license, plain_text_available, repo_path)",
+    )
     count = 0
+    # Add authored grammars first so low-limit grammar_search calls surface the
+    # freely-readable correction-oriented sources before legacy OCR snippets.
+    authored = 0
+    for doc in grammar._written_plain_texts():
+        text = doc["text"]
+        chunks = chunk_text(text, TEXT_CHUNK, 0)
+        # The current chapters fit under TEXT_CHUNK; if that changes, the chunks
+        # share the same path and grammar_get_text reassembles them in row order.
+        for chunk in chunks:
+            gw.add(
+                [
+                    chunk,
+                    doc.get("path"),
+                    doc.get("source"),
+                    doc.get("kind"),
+                    doc.get("title"),
+                    doc.get("summary"),
+                    doc.get("part"),
+                    doc.get("variant"),
+                    doc.get("license"),
+                    1,
+                    doc.get("repo_path"),
+                ]
+            )
+        authored += 1
+
     if root.exists():
         for p in sorted(root.rglob("*")):
             if not p.is_file() or p.suffix.lower() not in {".md", ".txt"}:
@@ -329,11 +378,11 @@ def build_grammar() -> list[str]:
                 continue
             rel = str(p.relative_to(root))
             for chunk in chunk_text(text, TEXT_CHUNK, GRAMMAR_OVERLAP):
-                gw.add([chunk, rel])
+                gw.add([chunk, rel, "ainu-grammar", None, None, None, None, None, None, 0, None])
             count += 1
     files.extend(gw.files)
     gw.close()
-    print(f"grammar: {len(mats)} materials, {count} transcribed files")
+    print(f"grammar: {len(mats)} materials, {count} legacy transcribed files, {authored} authored grammar chapters")
     return files
 
 
@@ -510,7 +559,7 @@ def main() -> None:
     (SEED_DIR / "MANIFEST.txt").write_text(
         "# Reference store is Turso (libSQL). Apply ALL migrations first\n"
         "# (turso db shell ainu-mcp < migrations/0001_init.sql, then 0002_frequency.sql,\n"
-        "# then 0003_localizations.sql), then\n"
+        "# then 0003_localizations.sql, then 0004_grammar_public_text.sql), then\n"
         "# load these files IN THIS ORDER via the batched libSQL loader — e.g.\n"
         "#   cd worker && TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... \\\n"
         "#     bun scripts/load-turso.mjs seed/reset.sql <files below>\n"

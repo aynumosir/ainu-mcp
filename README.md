@@ -8,7 +8,7 @@ Claude Desktop, etc.):
   Google Sheets source of truth — search, add, and update entries from chat.
 - **Reference all the other Ainu materials** in one place — search ~195 k
   aligned corpus sentences, look up words across 11 dictionaries, scan the
-  grammar bibliography, and convert between Latin/Katakana/Cyrillic scripts.
+  grammar bibliography and public project-authored Hokkaido/Sakhalin grammar chapters, and convert between Latin/Katakana/Cyrillic scripts.
 - **Research an entry in one call** — `entry_research(word)` composes all of
   the above into a single structured response, so the model can draft a
   well-grounded glossary entry without round-tripping.
@@ -67,6 +67,7 @@ AINU_ROOT=/home/mkpoli/projects/Ainu uv run python etl/build_d1.py
 - `ainu-corpora/data.jsonl`
 - `ainu-dictionaries/<dict-name>/*.tsv`
 - `ainu-grammar/{books,articles}/...`
+- `ainu-grammar-hokkaido/src/lib/grammar/chapters/*.svelte` and `aynu-itah/src/lib/grammar/chapters/*.svelte` when present locally; otherwise the ETL uses the committed `src/ainu_mcp/data/authored_grammar_texts.json` snapshot for public authored Hokkaido/Sakhalin grammar plain text.
 
 (The stopword list from [`aynumosir/ainu-stopwords`](https://github.com/aynumosir/ainu-stopwords)
 is public, so the ETL fetches it from GitHub automatically — no checkout needed.
@@ -117,8 +118,27 @@ the row since, the update is refused — re-read and retry.
 | `dictionary_list` | List dictionaries with entry counts |
 | `dictionary_lookup(word, dicts?, fields?, limit?)` | Multi-dictionary lookup (any field; supports substring) |
 | `dictionary_reverse_lookup(aynu, dicts?, limit?)` | Ainu → Japanese/English by exact lemma first then substring; Ota's reverse index included |
-| `grammar_list(kind?)` | List grammar books / articles |
-| `grammar_search(query, include_transcribed?, limit?)` | Filename/title/author search + fulltext over transcribed sources |
+| `grammar_list(kind?)` | List grammar books / articles, plus public authored Hokkaido/Sakhalin grammar chapters |
+| `grammar_search(query, include_transcribed?, limit?)` | Filename/title/author/metadata search + fulltext over transcribed sources and authored grammar chapters |
+| `grammar_get_text(path)` | Fetch complete plain text for public authored Hokkaido/Sakhalin grammar chapter paths |
+
+### Morphology (possessed / plural / derived forms)
+
+All three morphology tools are thin **proxies to the Ainu Morpheme Database
+forms engine** ([`mdb.aynu.org/api/forms`](https://mdb.aynu.org/api/forms), over the
+`env.MDB` service binding). The generative engine — possessed-noun forms,
+plural verb forms, and derivations — and its data live in MDB; this server holds
+no morphology copy of its own. The engine is **hybrid + provenanced**: rules
+generate, harvest + curated exceptions validate/override, and every form is
+tagged `source` (`rule` | `attested` | `exception`) + `confidence`. A
+`source='rule'` form with no `attested_ref` is **predicted-but-unattested** —
+surfaced as a discovery aid but flagged.
+
+| Tool | Purpose |
+| --- | --- |
+| `morphology_search(query, category?, limit?)` | Search forms — `query` matches the surface form, its analysis/decomposition, or the lemma (substring, via `/api/forms?q=`); filter by `category` (`possessed`/`plural`/`derived`, mapped to the upstream `relation` facet) |
+| `morphology_reverse_lookup(base, category?, limit?)` | From a base lemma to the forms built on it (e.g. `sapa` → `sapaha`); `base` is an exact `lemma_id` match (via `/api/forms?lemma=`) |
+| `morphology_forms(lemma, category?, relation?, feature?, provenance?, limit?)` | Look up a lemma's possessed-noun forms (`sapa` → `sapaha`), plural verb forms (`-pa`/suppletive, role-sensitive object vs subject number) and derivations. Filter by `category` (domain: `nominal`/`verbal`), `relation` (`possessed`/`plural`/`derived`), `feature` (a feature-bundle facet), `provenance` |
 
 ### Morphology (possessed / plural / derived forms)
 
