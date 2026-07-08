@@ -140,6 +140,24 @@ surfaced as a discovery aid but flagged.
 | `morphology_reverse_lookup(base, category?, limit?)` | From a base lemma to the forms built on it (e.g. `sapa` → `sapaha`); `base` is an exact `lemma_id` match (via `/api/forms?lemma=`) |
 | `morphology_forms(lemma, category?, relation?, feature?, provenance?, limit?)` | Look up a lemma's possessed-noun forms (`sapa` → `sapaha`), plural verb forms (`-pa`/suppletive, role-sensitive object vs subject number) and derivations. Filter by `category` (domain: `nominal`/`verbal`), `relation` (`possessed`/`plural`/`derived`), `feature` (a feature-bundle facet), `provenance` |
 
+### Morphology (possessed / plural / derived forms)
+
+All three morphology tools are thin **proxies to the Ainu Morpheme Database
+forms engine** ([`mdb.aynu.org/api/forms`](https://mdb.aynu.org/api/forms), over the
+`env.MDB` service binding). The generative engine — possessed-noun forms,
+plural verb forms, and derivations — and its data live in MDB; this server holds
+no morphology copy of its own. The engine is **hybrid + provenanced**: rules
+generate, harvest + curated exceptions validate/override, and every form is
+tagged `source` (`rule` | `attested` | `exception`) + `confidence`. A
+`source='rule'` form with no `attested_ref` is **predicted-but-unattested** —
+surfaced as a discovery aid but flagged.
+
+| Tool | Purpose |
+| --- | --- |
+| `morphology_search(query, category?, limit?)` | Search forms — `query` matches the surface form, its analysis/decomposition, or the lemma (substring, via `/api/forms?q=`); filter by `category` (`possessed`/`plural`/`derived`, mapped to the upstream `relation` facet) |
+| `morphology_reverse_lookup(base, category?, limit?)` | From a base lemma to the forms built on it (e.g. `sapa` → `sapaha`); `base` is an exact `lemma_id` match (via `/api/forms?lemma=`) |
+| `morphology_forms(lemma, category?, relation?, feature?, provenance?, limit?)` | Look up a lemma's possessed-noun forms (`sapa` → `sapaha`), plural verb forms (`-pa`/suppletive, role-sensitive object vs subject number) and derivations. Filter by `category` (domain: `nominal`/`verbal`), `relation` (`possessed`/`plural`/`derived`), `feature` (a feature-bundle facet), `provenance` |
+
 ### Localization (i18n strings)
 
 | Tool | Purpose |
