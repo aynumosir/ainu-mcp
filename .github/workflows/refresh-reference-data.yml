@@ -151,7 +151,9 @@ jobs:
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-        run: bun scripts/apply-grammar-public-text-migration.mjs
+        # --allow-fts-rebuild: this workflow reloads EVERY grammar_fts row right
+        # after (reset.sql + full seed), so a destructive FTS rebuild is safe here.
+        run: bun scripts/apply-grammar-public-text-migration.mjs --allow-fts-rebuild
 
       # ───── Reset + reload the live Turso DB in place via the batched libSQL
       # loader (turso db shell drops the stream on the big seed files). During

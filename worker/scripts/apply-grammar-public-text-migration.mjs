@@ -9,8 +9,18 @@
  *
  * Run immediately before a full reset+reload. If grammar_fts is still in the old
  * shape, this drops and recreates it; the following seed reload repopulates it.
+ *
+ * DESTRUCTIVE-REBUILD GUARD: recreating grammar_fts empties it, so it is only
+ * safe when the caller is about to reload ALL grammar_fts rows (the full reseed).
+ * The targeted authored-grammar fast path only reloads the ~200 authored rows and
+ * would otherwise lose the ~900 legacy ainu-grammar OCR rows. So the rebuild is
+ * gated behind --allow-fts-rebuild (or ALLOW_FTS_REBUILD=1); without it, a needed
+ * rebuild aborts loudly instead of silently dropping legacy fulltext.
  */
 import { createClient } from "@libsql/client";
+
+const allowFtsRebuild =
+  process.argv.includes("--allow-fts-rebuild") || process.env.ALLOW_FTS_REBUILD === "1";
 
 const url = process.env.TURSO_DATABASE_URL;
 const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -48,6 +58,16 @@ const ftsSchema = await client.execute("SELECT sql FROM sqlite_master WHERE type
 const sql = String(ftsSchema.rows[0]?.sql ?? "");
 const needsFtsRebuild = !/repo_path\s+UNINDEXED/i.test(sql) || !/plain_text_available\s+UNINDEXED/i.test(sql);
 if (needsFtsRebuild) {
+  if (!allowFtsRebuild) {
+    console.error(
+      "::error::grammar_fts needs a destructive rebuild (missing public-text columns), " +
+        "but --allow-fts-rebuild was not passed. Recreating the table would empty it, and " +
+        "this caller only reloads a subset of rows — so aborting to avoid destroying legacy " +
+        "ainu-grammar OCR fulltext. Run the full 'Refresh Turso reference data' workflow " +
+        "(which passes --allow-fts-rebuild and reloads every grammar_fts row) first.",
+    );
+    process.exit(1);
+  }
   console.log("grammar_fts: rebuilding with public-text metadata columns");
   await client.batch(
     [
