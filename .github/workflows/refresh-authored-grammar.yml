@@ -142,6 +142,11 @@ jobs:
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        # Deliberately WITHOUT --allow-fts-rebuild: this fast path only reloads the
+        # authored grammar rows, so it must never trigger a destructive grammar_fts
+        # rebuild (that would drop the legacy ainu-grammar OCR fulltext). On an
+        # up-to-date schema this is a no-op; if a rebuild were ever needed it aborts,
+        # and you should run the full "Refresh Turso reference data" workflow instead.
         run: bun scripts/apply-grammar-public-text-migration.mjs
 
       - name: Reload authored grammar rows only
