@@ -46,15 +46,20 @@ This repo has a dedicated workflow:
 
 It does four things:
 
-1. clones `aynumosir/ainu-grammar-hokkaido` and `mkpoli/ainu-itah`;
-2. regenerates and commits `authored_grammar_texts.json` if it changed;
-3. builds `worker/seed/data/authored_grammar_refresh.sql`;
-4. applies the small authored-row refresh to Turso.
+1. chooses the changed source from `client_payload.repo` (`ainu-grammar-hokkaido` → `hokkaido`, `aynu-itah` → `sakhalin`), or `all` for manual runs;
+2. clones only the selected grammar source repo(s);
+3. regenerates and commits `authored_grammar_texts.json` if it changed, preserving the non-selected source from the existing snapshot;
+4. builds `worker/seed/data/authored_grammar_refresh.sql` and applies the small authored-row refresh to Turso.
 
 Manual run:
 
 ```bash
-gh workflow run "Refresh authored grammar text" --ref main -f reason="grammar source update"
+# Refresh both sources
+gh workflow run "Refresh authored grammar text" --ref main -f source=all -f reason="grammar source update"
+
+# Or refresh only one source
+gh workflow run "Refresh authored grammar text" --ref main -f source=sakhalin -f reason="aynu-itah update"
+gh workflow run "Refresh authored grammar text" --ref main -f source=hokkaido -f reason="ainu-grammar-hokkaido update"
 ```
 
 ## Hooking upstream pushes
@@ -112,13 +117,10 @@ sufficient for repository dispatch on fine-grained tokens).
 The authored-grammar refresh workflow needs:
 
 - `DATA_REPOS_TOKEN`: can read private `aynumosir/ainu-grammar-hokkaido` and the
-  normal private data repos.
+  normal private data repos. A Sakhalin-only refresh can clone `mkpoli/ainu-itah` without this token, but Hokkaido/all refreshes require it.
 - `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN`: write access to the Turso reference
   store.
 
 ## Why not update only one changed chapter?
 
-Possible, but not currently worth the complexity. The authored grammar slice is
-small (~203 chapters; generated SQL ~3.6 MB). Replacing all `hokkaido`/`sakhalin`
-rows is simple, deterministic, and avoids diffing chapter slugs, deleted
-chapters, split large rows, and title/TOC metadata changes.
+The workflow updates one **source** at a time (`hokkaido` or `sakhalin`) when it can infer the source from the dispatch payload, but the generated SQL replaces all authored rows (`hokkaido` + `sakhalin`) from the combined snapshot. The authored grammar slice is small (~203 chapters; generated SQL ~3.6 MB), so replacing both authored sources in Turso is simpler and safer than diffing individual chapter slugs, deleted chapters, split large rows, and title/TOC metadata changes. It still avoids the expensive full corpus/dictionary rebuild.

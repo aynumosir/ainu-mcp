@@ -6,6 +6,8 @@ name: Refresh authored grammar text
 #
 # Expected repository_dispatch payload from upstream grammar repos:
 #   { "event_type": "authored-grammar-changed", "client_payload": { "repo": "ainu-grammar-hokkaido" } }
+# or:
+#   { "event_type": "authored-grammar-changed", "client_payload": { "repo": "aynu-itah" } }
 
 on:
   workflow_dispatch:
@@ -13,6 +15,12 @@ on:
       reason:
         required: false
         description: Why are you refreshing authored grammar text?
+      source:
+        required: false
+        type: choice
+        description: Which authored grammar source to refresh
+        default: all
+        options: [all, hokkaido, sakhalin]
   repository_dispatch:
     types: [authored-grammar-changed]
 
@@ -35,27 +43,59 @@ jobs:
         with:
           token: ${{ github.token }}
 
-      - name: Clone authored grammar source repos
+      - name: Decide source to refresh
+        id: decide
         env:
-          # DATA_REPOS_TOKEN must be able to read the private
-          # aynumosir/ainu-grammar-hokkaido repo. mkpoli/ainu-itah is public.
+          INPUT_SOURCE: ${{ inputs.source || '' }}
+          DISPATCH_REPO: ${{ github.event.client_payload.repo || '' }}
+        run: |
+          set -euo pipefail
+          source="${INPUT_SOURCE:-all}"
+          case "$DISPATCH_REPO" in
+            ainu-grammar-hokkaido) source="hokkaido" ;;
+            aynu-itah|ainu-itah) source="sakhalin" ;;
+            "") ;;
+            *) echo "::warning::Unknown dispatch repo '$DISPATCH_REPO'; refreshing all authored grammar sources" ;;
+          esac
+          echo "source=$source" >> "$GITHUB_OUTPUT"
+          echo "refreshing source: $source"
+
+      - name: Clone selected authored grammar source repo(s)
+        env:
+          # Needed only when the selected source includes hokkaido, because
+          # aynumosir/ainu-grammar-hokkaido is private. mkpoli/ainu-itah is public.
           GH_TOKEN: ${{ secrets.DATA_REPOS_TOKEN }}
+          SOURCE: ${{ steps.decide.outputs.source }}
         run: |
           set -euo pipefail
           mkdir -p "$AINU_ROOT"
-          repos=(
-            "aynumosir/ainu-grammar-hokkaido:ainu-grammar-hokkaido"
-            "mkpoli/ainu-itah:aynu-itah"
-          )
-          for spec in "${repos[@]}"; do
-            repo="${spec%%:*}"
-            dir="${spec##*:}"
+          clone_repo() {
+            local repo="$1" dir="$2" url
             echo "::group::clone $repo → $dir"
-            git clone --depth 1 \
-              "https://x-access-token:${GH_TOKEN}@github.com/$repo.git" \
-              "$AINU_ROOT/$dir"
+            if [ -n "${GH_TOKEN:-}" ]; then
+              url="https://x-access-token:${GH_TOKEN}@github.com/$repo.git"
+            else
+              url="https://github.com/$repo.git"
+            fi
+            git clone --depth 1 "$url" "$AINU_ROOT/$dir"
             echo "::endgroup::"
-          done
+          }
+          case "$SOURCE" in
+            all)
+              clone_repo "aynumosir/ainu-grammar-hokkaido" "ainu-grammar-hokkaido"
+              clone_repo "mkpoli/ainu-itah" "aynu-itah"
+              ;;
+            hokkaido)
+              clone_repo "aynumosir/ainu-grammar-hokkaido" "ainu-grammar-hokkaido"
+              ;;
+            sakhalin)
+              clone_repo "mkpoli/ainu-itah" "aynu-itah"
+              ;;
+            *)
+              echo "::error::Unknown source '$SOURCE'"
+              exit 1
+              ;;
+          esac
 
       - name: Set up uv (Python ETL)
         uses: astral-sh/setup-uv@v5
@@ -67,9 +107,11 @@ jobs:
         run: uv sync --frozen
 
       - name: Rebuild authored grammar snapshot + seed
+        env:
+          SOURCE: ${{ steps.decide.outputs.source }}
         run: |
           set -euo pipefail
-          uv run python scripts/update_authored_grammar_snapshot.py
+          uv run python scripts/update_authored_grammar_snapshot.py --source "$SOURCE"
           uv run python scripts/build_authored_grammar_seed.py
 
       - name: Commit snapshot if changed
