@@ -67,8 +67,7 @@ AINU_ROOT=/home/mkpoli/projects/Ainu uv run python etl/build_d1.py
 - `ainu-corpora/data.jsonl`
 - `ainu-dictionaries/<dict-name>/*.tsv`
 - `ainu-grammar/{books,articles}/...`
-- `ainu-grammar-hokkaido/src/lib/grammar/chapters/*.svelte` (optional; public authored plain text)
-- `aynu-itah/src/lib/grammar/chapters/*.svelte` (optional; public authored Sakhalin grammar plain text)
+- `ainu-grammar-hokkaido/src/lib/grammar/chapters/*.svelte` and `aynu-itah/src/lib/grammar/chapters/*.svelte` when present locally; otherwise the ETL uses the committed `src/ainu_mcp/data/authored_grammar_texts.json` snapshot for public authored Hokkaido/Sakhalin grammar plain text.
 
 (The stopword list from [`aynumosir/ainu-stopwords`](https://github.com/aynumosir/ainu-stopwords)
 is public, so the ETL fetches it from GitHub automatically — no checkout needed.

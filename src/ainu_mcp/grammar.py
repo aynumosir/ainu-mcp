@@ -18,6 +18,7 @@ We expose:
 
 from __future__ import annotations
 
+import json
 import re
 from functools import cache
 from html import unescape
@@ -26,6 +27,8 @@ from typing import Any
 
 from .config import get_config
 
+_DATA_DIR = Path(__file__).resolve().parent / "data"
+_AUTHORED_GRAMMAR_SNAPSHOT = _DATA_DIR / "authored_grammar_texts.json"
 _FILENAME_RE = re.compile(r"^(?P<year>\d{4})_(?P<author>[^_]+)_(?P<title>.+)\.(pdf|md|txt)$")
 _TEXT_SUFFIXES = {".md", ".txt"}
 _MATERIAL_SUFFIXES = {".pdf", ".md", ".txt"}
@@ -232,7 +235,16 @@ def _written_plain_texts() -> list[dict[str, Any]]:
                     "license": "project-authored public plain text",
                 }
             )
-    return out
+    if out:
+        return out
+
+    # CI/prod refresh may not have credentials to clone every authored grammar
+    # repo. Fall back to the committed snapshot so the public plain-text grammar
+    # surface remains deployable/reseedable from this repo alone.
+    try:
+        return json.loads(_AUTHORED_GRAMMAR_SNAPSHOT.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
 
 
 @cache

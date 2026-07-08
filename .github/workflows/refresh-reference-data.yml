@@ -49,16 +49,13 @@ jobs:
           mkdir -p "$AINU_ROOT"
           # ainu-stopwords is public and tiny — the ETL fetches it straight from
           # GitHub (see ainu_mcp.stopwords), so it is NOT cloned here. Only the
-          # private data repos need the authenticated clone, but use the same
-          # token for the public authored grammar repos for simplicity. The
-          # local checkout path must stay as "$AINU_ROOT/aynu-itah" because the
-          # ETL discovers that sibling directory by name.
+          # ainu-grammar-hokkaido / aynu-itah authored grammar plain text is
+          # vendored as a compact snapshot in src/ainu_mcp/data, so this refresh
+          # does not need cross-repo access to those source sites.
           repos=(
             "aynumosir/ainu-corpora:ainu-corpora"
             "aynumosir/ainu-dictionaries:ainu-dictionaries"
             "aynumosir/ainu-grammar:ainu-grammar"
-            "aynumosir/ainu-grammar-hokkaido:ainu-grammar-hokkaido"
-            "mkpoli/ainu-itah:aynu-itah"
           )
           for spec in "${repos[@]}"; do
             repo="${spec%%:*}"
