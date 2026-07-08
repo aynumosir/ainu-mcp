@@ -1,0 +1,110 @@
+name: Refresh authored grammar text
+
+# Fast path for updates from the project-authored grammar sites. Unlike the full
+# reference refresh, this only rebuilds the vendored Hokkaido/Sakhalin grammar
+# snapshot and reloads the authored rows in grammar_materials / grammar_fts.
+#
+# Expected repository_dispatch payload from upstream grammar repos:
+#   { "event_type": "authored-grammar-changed", "client_payload": { "repo": "ainu-grammar-hokkaido" } }
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        required: false
+        description: Why are you refreshing authored grammar text?
+  repository_dispatch:
+    types: [authored-grammar-changed]
+
+concurrency:
+  group: refresh-authored-grammar
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-authored-grammar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      AINU_ROOT: ${{ github.workspace }}/_data
+    steps:
+      - name: Checkout ainu-mcp
+        uses: actions/checkout@v4
+        with:
+          token: ${{ github.token }}
+
+      - name: Clone authored grammar source repos
+        env:
+          # DATA_REPOS_TOKEN must be able to read the private
+          # aynumosir/ainu-grammar-hokkaido repo. mkpoli/ainu-itah is public.
+          GH_TOKEN: ${{ secrets.DATA_REPOS_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$AINU_ROOT"
+          repos=(
+            "aynumosir/ainu-grammar-hokkaido:ainu-grammar-hokkaido"
+            "mkpoli/ainu-itah:aynu-itah"
+          )
+          for spec in "${repos[@]}"; do
+            repo="${spec%%:*}"
+            dir="${spec##*:}"
+            echo "::group::clone $repo → $dir"
+            git clone --depth 1 \
+              "https://x-access-token:${GH_TOKEN}@github.com/$repo.git" \
+              "$AINU_ROOT/$dir"
+            echo "::endgroup::"
+          done
+
+      - name: Set up uv (Python ETL)
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.13"
+
+      - name: Install Python deps
+        run: uv sync --frozen
+
+      - name: Rebuild authored grammar snapshot + seed
+        run: |
+          set -euo pipefail
+          uv run python scripts/update_authored_grammar_snapshot.py
+          uv run python scripts/build_authored_grammar_seed.py
+
+      - name: Commit snapshot if changed
+        id: commit
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- src/ainu_mcp/data/authored_grammar_texts.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "snapshot unchanged"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/ainu_mcp/data/authored_grammar_texts.json
+            git commit -m "Update authored grammar text snapshot"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install worker deps (@libsql/client for the loader)
+        working-directory: worker
+        run: bun install --frozen-lockfile
+
+      - name: Ensure grammar public-text schema exists
+        working-directory: worker
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: bun scripts/apply-grammar-public-text-migration.mjs
+
+      - name: Reload authored grammar rows only
+        working-directory: worker
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: bun scripts/load-turso.mjs seed/data/authored_grammar_refresh.sql

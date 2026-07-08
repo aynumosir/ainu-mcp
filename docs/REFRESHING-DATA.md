@@ -23,6 +23,10 @@ and [`aynumosir/ainu-grammar`](https://github.com/aynumosir/ainu-grammar) repos 
 [`refresh-reference-data`](../.github/workflows/refresh-reference-data.yml)
 workflow keeps it current automatically on the same monthly cycle.
 
+## Project-authored grammar fast refresh
+
+For pushes to `ainu-grammar-hokkaido` or `aynu-itah`, use the smaller authored-grammar refresh path documented in [`AUTHORED-GRAMMAR-REFRESH.md`](AUTHORED-GRAMMAR-REFRESH.md). It updates only the vendored authored grammar snapshot and the `hokkaido`/`sakhalin` rows in Turso, rather than rebuilding the full corpus/dictionary reference store.
+
 ## What the workflow does
 
 Monthly (and on demand), it:
