@@ -26,7 +26,7 @@ const MOREU = `<svg class="moreu" viewBox="0 0 200 24" aria-hidden="true" preser
 const TOOLS = [
   ["Corpus", "corpus_search · corpus_stats · word_frequency", "Search ~195k aligned Ainu/Japanese sentences and rank token frequencies (with stopwords from ainu-stopwords)."],
   ["Dictionaries", "dictionary_lookup · reverse_lookup · list", "Look up words across 80+ dictionaries (Kayano, Tamura, Chiri, Nakagawa, Ota…)."],
-  ["Grammar", "grammar_search · grammar_list", "Search the grammar bibliography and full text of transcribed sources."],
+  ["Grammar", "grammar_search · grammar_list · grammar_get_text", "Search the grammar bibliography and transcribed sources, plus read the full plain text of the project-authored Hokkaido &amp; Sakhalin reference grammars."],
   ["Morphemes", "morpheme_decompose · morpheme_search · lexeme_search", "Decompose words into morphemes and search the morpheme/lexeme banks (mdb.aynu.org)."],
   ["Scripts", "convert_script · detect_script · script_all", "Convert Ainu between Latin, Katakana, and Cyrillic (ainconv)."],
   ["Glossary", "glossary_search · add · update · audit", "Read and edit the Itak-uoeroskip glossary (itak.aynu.org) at its source."],
@@ -359,8 +359,9 @@ A browser GitHub sign-in happens once; the token is stored and reused.
 - dictionary_list() — list dictionaries with entry counts
 - dictionary_lookup(word, dicts?, fields?, limit?) — substring lookup across any field of 80+ dictionaries
 - dictionary_reverse_lookup(aynu, dicts?, limit?) — Ainu form -> Japanese/English glosses (exact then substring)
-- grammar_list(kind?) — list grammar books/articles
-- grammar_search(query, include_transcribed?, limit?) — filename/title/author + transcribed-fulltext search
+- grammar_list(kind?) — list grammar books/articles, plus project-authored Hokkaido (hokkaido_grammar) & Sakhalin (sakhalin_grammar) reference-grammar chapters
+- grammar_search(query, include_transcribed?, limit?) — filename/title/author/metadata + transcribed/authored-fulltext search
+- grammar_get_text(path) — full plain text of a project-authored Hokkaido/Sakhalin grammar chapter (free to read/reuse)
 - morpheme_decompose(word, mode=nested|flat|first) — decompose an Ainu word into morphemes (mdb.aynu.org); known lemmas resolve directly, unknown forms fall back to greedy-longest segmentation
 - morpheme_search(query, limit?) — search the morpheme inventory (mdb.aynu.org) by lemma, allomorph, or gloss; returns category, glosses, frequency, verified flag
 - lexeme_search(query, limit?) — search the lexeme bank (語彙素層, mdb.aynu.org) by lemma, kana, or gloss; returns POS, glosses, dialects, linked morpheme ids

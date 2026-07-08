@@ -167,43 +167,134 @@ export async function listDictionaries(db: D1Database): Promise<{ name: string; 
 }
 
 export interface GrammarMaterial {
+  source: string | null;
   kind: string;
   path: string;
   filename: string;
   year: number | null;
   author: string | null;
   title: string | null;
+  summary: string | null;
+  part: string | null;
+  variant: string | null;
+  license: string | null;
+  plain_text_available: number | null;
+}
+
+// Adds metadata/full-text columns for public authored grammars while remaining
+// compatible with an older Turso schema during rolling migration/reseed.
+const GRAMMAR_MATERIAL_COLS =
+  "source, kind, path, filename, year, author, title, summary, part, variant, license, plain_text_available";
+const GRAMMAR_MATERIAL_LEGACY_COLS =
+  "'ainu-grammar' AS source, kind, path, filename, year, author, title, NULL AS summary, NULL AS part, NULL AS variant, NULL AS license, 0 AS plain_text_available";
+
+function isMissingGrammarColumn(err: unknown): boolean {
+  return /no such column: (source|summary|part|variant|license|plain_text_available|repo_path)/i.test(String(err instanceof Error ? err.message : err));
 }
 
 export async function grammarList(db: D1Database, kind?: string | null): Promise<GrammarMaterial[]> {
   // ORDER BY rowid reproduces _walk_materials() traversal order.
-  if (kind) {
-    const { results } = await db.prepare(`SELECT kind, path, filename, year, author, title FROM grammar_materials WHERE kind = ? ORDER BY rowid`).bind(kind).all<GrammarMaterial>();
+  try {
+    if (kind) {
+      const { results } = await db.prepare(`SELECT ${GRAMMAR_MATERIAL_COLS} FROM grammar_materials WHERE kind = ? ORDER BY rowid`).bind(kind).all<GrammarMaterial>();
+      return results ?? [];
+    }
+    const { results } = await db.prepare(`SELECT ${GRAMMAR_MATERIAL_COLS} FROM grammar_materials ORDER BY rowid`).all<GrammarMaterial>();
+    return results ?? [];
+  } catch (err) {
+    if (!isMissingGrammarColumn(err)) throw err;
+    if (kind && kind !== "books" && kind !== "articles") return [];
+    if (kind) {
+      const { results } = await db.prepare(`SELECT ${GRAMMAR_MATERIAL_LEGACY_COLS} FROM grammar_materials WHERE kind = ? ORDER BY rowid`).bind(kind).all<GrammarMaterial>();
+      return results ?? [];
+    }
+    const { results } = await db.prepare(`SELECT ${GRAMMAR_MATERIAL_LEGACY_COLS} FROM grammar_materials ORDER BY rowid`).all<GrammarMaterial>();
     return results ?? [];
   }
-  const { results } = await db.prepare(`SELECT kind, path, filename, year, author, title FROM grammar_materials ORDER BY rowid`).all<GrammarMaterial>();
-  return results ?? [];
 }
 
 export async function grammarFilenameSearch(db: D1Database, q: string, limit: number): Promise<GrammarMaterial[]> {
   const pat = likePattern(q.toLowerCase());
-  const sql = `SELECT kind, path, filename, year, author, title FROM grammar_materials
-               WHERE lower(filename) LIKE ? ESCAPE '\\' OR lower(coalesce(title,'')) LIKE ? ESCAPE '\\' OR lower(coalesce(author,'')) LIKE ? ESCAPE '\\'
+  const sql = `SELECT ${GRAMMAR_MATERIAL_COLS} FROM grammar_materials
+               WHERE lower(filename) LIKE ? ESCAPE '\\'
+                  OR lower(coalesce(title,'')) LIKE ? ESCAPE '\\'
+                  OR lower(coalesce(author,'')) LIKE ? ESCAPE '\\'
+                  OR lower(coalesce(summary,'')) LIKE ? ESCAPE '\\'
+                  OR lower(coalesce(variant,'')) LIKE ? ESCAPE '\\'
+                  OR lower(coalesce(part,'')) LIKE ? ESCAPE '\\'
                ORDER BY rowid LIMIT ?`;
-  const { results } = await db.prepare(sql).bind(pat, pat, pat, clampLimit(limit)).all<GrammarMaterial>();
-  return results ?? [];
-}
-
-export async function grammarTranscribedSearch(db: D1Database, q: string, limit: number): Promise<{ path: string; content: string }[]> {
-  const lim = clampLimit(limit);
-  if (q.length >= 3) {
-    const sql = `SELECT path, content FROM grammar_fts WHERE grammar_fts MATCH ? LIMIT ?`;
-    const { results } = await db.prepare(sql).bind(`content : ${ftsPhrase(q)}`, lim).all<{ path: string; content: string }>();
+  try {
+    const { results } = await db.prepare(sql).bind(pat, pat, pat, pat, pat, pat, clampLimit(limit)).all<GrammarMaterial>();
+    return results ?? [];
+  } catch (err) {
+    if (!isMissingGrammarColumn(err)) throw err;
+    const legacySql = `SELECT ${GRAMMAR_MATERIAL_LEGACY_COLS} FROM grammar_materials
+                       WHERE lower(filename) LIKE ? ESCAPE '\\' OR lower(coalesce(title,'')) LIKE ? ESCAPE '\\' OR lower(coalesce(author,'')) LIKE ? ESCAPE '\\'
+                       ORDER BY rowid LIMIT ?`;
+    const { results } = await db.prepare(legacySql).bind(pat, pat, pat, clampLimit(limit)).all<GrammarMaterial>();
     return results ?? [];
   }
-  const sql = `SELECT path, content FROM grammar_fts WHERE lower(content) LIKE ? ESCAPE '\\' LIMIT ?`;
-  const { results } = await db.prepare(sql).bind(likePattern(q.toLowerCase()), lim).all<{ path: string; content: string }>();
-  return results ?? [];
+}
+
+export interface GrammarTextRow {
+  path: string;
+  content: string;
+  source: string | null;
+  kind: string | null;
+  title: string | null;
+  summary: string | null;
+  part: string | null;
+  variant: string | null;
+  license: string | null;
+  plain_text_available: number | null;
+}
+
+const GRAMMAR_TEXT_COLS =
+  "path, content, source, kind, title, summary, part, variant, license, plain_text_available";
+const GRAMMAR_TEXT_LEGACY_COLS =
+  "path, content, 'ainu-grammar' AS source, NULL AS kind, NULL AS title, NULL AS summary, NULL AS part, NULL AS variant, NULL AS license, 0 AS plain_text_available";
+
+export async function grammarTranscribedSearch(db: D1Database, q: string, limit: number): Promise<GrammarTextRow[]> {
+  const lim = clampLimit(limit);
+  if (q.length >= 3) {
+    const sql = `SELECT ${GRAMMAR_TEXT_COLS} FROM grammar_fts WHERE grammar_fts MATCH ? LIMIT ?`;
+    try {
+      const { results } = await db.prepare(sql).bind(`content : ${ftsPhrase(q)}`, lim).all<GrammarTextRow>();
+      return results ?? [];
+    } catch (err) {
+      if (!isMissingGrammarColumn(err)) throw err;
+      const { results } = await db.prepare(`SELECT ${GRAMMAR_TEXT_LEGACY_COLS} FROM grammar_fts WHERE grammar_fts MATCH ? LIMIT ?`).bind(`content : ${ftsPhrase(q)}`, lim).all<GrammarTextRow>();
+      return results ?? [];
+    }
+  }
+  const sql = `SELECT ${GRAMMAR_TEXT_COLS} FROM grammar_fts WHERE lower(content) LIKE ? ESCAPE '\\' LIMIT ?`;
+  try {
+    const { results } = await db.prepare(sql).bind(likePattern(q.toLowerCase()), lim).all<GrammarTextRow>();
+    return results ?? [];
+  } catch (err) {
+    if (!isMissingGrammarColumn(err)) throw err;
+    const { results } = await db.prepare(`SELECT ${GRAMMAR_TEXT_LEGACY_COLS} FROM grammar_fts WHERE lower(content) LIKE ? ESCAPE '\\' LIMIT ?`).bind(likePattern(q.toLowerCase()), lim).all<GrammarTextRow>();
+    return results ?? [];
+  }
+}
+
+export async function grammarGetPlainText(db: D1Database, path: string): Promise<GrammarTextRow | null> {
+  const key = path.trim().replace(/^\/+/, "");
+  if (!key) return null;
+  // Only project-authored public grammars get full-text retrieval. Legacy OCR
+  // rows remain snippet-searchable but are not exposed wholesale.
+  const sql = `SELECT ${GRAMMAR_TEXT_COLS} FROM grammar_fts
+               WHERE plain_text_available = 1 AND (path = ? OR repo_path = ?)
+               ORDER BY rowid`;
+  try {
+    const { results } = await db.prepare(sql).bind(key, key).all<GrammarTextRow>();
+    const rows = results ?? [];
+    if (!rows.length) return null;
+    return { ...rows[0], content: rows.map((r) => r.content).join("") };
+  } catch (err) {
+    if (!isMissingGrammarColumn(err)) throw err;
+    return null;
+  }
 }
 
 export interface VocabCandidate {

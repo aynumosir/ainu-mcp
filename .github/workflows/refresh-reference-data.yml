@@ -49,12 +49,24 @@ jobs:
           mkdir -p "$AINU_ROOT"
           # ainu-stopwords is public and tiny — the ETL fetches it straight from
           # GitHub (see ainu_mcp.stopwords), so it is NOT cloned here. Only the
-          # private data repos need the authenticated clone.
-          for r in ainu-corpora ainu-dictionaries ainu-grammar; do
-            echo "::group::clone $r"
+          # private data repos need the authenticated clone, but use the same
+          # token for the public authored grammar repos for simplicity. The
+          # local checkout path must stay as "$AINU_ROOT/aynu-itah" because the
+          # ETL discovers that sibling directory by name.
+          repos=(
+            "aynumosir/ainu-corpora:ainu-corpora"
+            "aynumosir/ainu-dictionaries:ainu-dictionaries"
+            "aynumosir/ainu-grammar:ainu-grammar"
+            "aynumosir/ainu-grammar-hokkaido:ainu-grammar-hokkaido"
+            "mkpoli/ainu-itah:aynu-itah"
+          )
+          for spec in "${repos[@]}"; do
+            repo="${spec%%:*}"
+            dir="${spec##*:}"
+            echo "::group::clone $repo → $dir"
             git clone --depth 1 \
-              "https://x-access-token:${GH_TOKEN}@github.com/aynumosir/$r.git" \
-              "$AINU_ROOT/$r"
+              "https://x-access-token:${GH_TOKEN}@github.com/$repo.git" \
+              "$AINU_ROOT/$dir"
             echo "::endgroup::"
           done
 
@@ -136,6 +148,13 @@ jobs:
       - name: Install worker deps (@libsql/client for the loader)
         working-directory: worker
         run: bun install --frozen-lockfile
+
+      - name: Apply grammar public-text schema migration
+        working-directory: worker
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: bun scripts/apply-grammar-public-text-migration.mjs
 
       # ───── Reset + reload the live Turso DB in place via the batched libSQL
       # loader (turso db shell drops the stream on the big seed files). During

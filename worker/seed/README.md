@@ -19,7 +19,7 @@ writes:
 - `data/dict_entries_*.sql` + `data/dict_fts.sql` — dictionary rows then the
   external-content FTS rebuild (apply entries **before** the rebuild)
 - `data/dictionaries_list.sql` — per-dictionary counts
-- `data/grammar_materials_0001.sql` + `data/grammar_fts_0001.sql`
+- `data/grammar_materials_0001.sql` + `data/grammar_fts_0001.sql` — legacy grammar snippets plus public authored Hokkaido/Sakhalin chapter text
 - `data/stopwords.sql` — Ainu stopword list (from `aynumosir/ainu-stopwords`)
 - `data/token_freq_*.sql` — every corpus token with its count + stopword flag
 - `data/vocab_candidates.sql` — precomputed gap candidates (count ≥ 5)

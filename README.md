@@ -8,7 +8,7 @@ Claude Desktop, etc.):
   Google Sheets source of truth — search, add, and update entries from chat.
 - **Reference all the other Ainu materials** in one place — search ~195 k
   aligned corpus sentences, look up words across 11 dictionaries, scan the
-  grammar bibliography, and convert between Latin/Katakana/Cyrillic scripts.
+  grammar bibliography and public project-authored Hokkaido/Sakhalin grammar chapters, and convert between Latin/Katakana/Cyrillic scripts.
 - **Research an entry in one call** — `entry_research(word)` composes all of
   the above into a single structured response, so the model can draft a
   well-grounded glossary entry without round-tripping.
@@ -67,6 +67,8 @@ AINU_ROOT=/home/mkpoli/projects/Ainu uv run python etl/build_d1.py
 - `ainu-corpora/data.jsonl`
 - `ainu-dictionaries/<dict-name>/*.tsv`
 - `ainu-grammar/{books,articles}/...`
+- `ainu-grammar-hokkaido/src/lib/grammar/chapters/*.svelte` (optional; public authored plain text)
+- `aynu-itah/src/lib/grammar/chapters/*.svelte` (optional; public authored Sakhalin grammar plain text)
 
 (The stopword list from [`aynumosir/ainu-stopwords`](https://github.com/aynumosir/ainu-stopwords)
 is public, so the ETL fetches it from GitHub automatically — no checkout needed.
@@ -117,8 +119,9 @@ the row since, the update is refused — re-read and retry.
 | `dictionary_list` | List dictionaries with entry counts |
 | `dictionary_lookup(word, dicts?, fields?, limit?)` | Multi-dictionary lookup (any field; supports substring) |
 | `dictionary_reverse_lookup(aynu, dicts?, limit?)` | Ainu → Japanese/English by exact lemma first then substring; Ota's reverse index included |
-| `grammar_list(kind?)` | List grammar books / articles |
-| `grammar_search(query, include_transcribed?, limit?)` | Filename/title/author search + fulltext over transcribed sources |
+| `grammar_list(kind?)` | List grammar books / articles, plus public authored Hokkaido/Sakhalin grammar chapters |
+| `grammar_search(query, include_transcribed?, limit?)` | Filename/title/author/metadata search + fulltext over transcribed sources and authored grammar chapters |
+| `grammar_get_text(path)` | Fetch complete plain text for public authored Hokkaido/Sakhalin grammar chapter paths |
 
 ### Morphology (possessed / plural / derived forms)
 
