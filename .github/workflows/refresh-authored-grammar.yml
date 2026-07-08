@@ -62,22 +62,14 @@ jobs:
 
       - name: Clone selected authored grammar source repo(s)
         env:
-          # Needed only when the selected source includes hokkaido, because
-          # aynumosir/ainu-grammar-hokkaido is private. mkpoli/ainu-itah is public.
-          GH_TOKEN: ${{ secrets.DATA_REPOS_TOKEN }}
           SOURCE: ${{ steps.decide.outputs.source }}
         run: |
           set -euo pipefail
           mkdir -p "$AINU_ROOT"
           clone_repo() {
-            local repo="$1" dir="$2" url
+            local repo="$1" dir="$2"
             echo "::group::clone $repo → $dir"
-            if [ -n "${GH_TOKEN:-}" ]; then
-              url="https://x-access-token:${GH_TOKEN}@github.com/$repo.git"
-            else
-              url="https://github.com/$repo.git"
-            fi
-            git clone --depth 1 "$url" "$AINU_ROOT/$dir"
+            git clone --depth 1 "https://github.com/$repo.git" "$AINU_ROOT/$dir"
             echo "::endgroup::"
           }
           case "$SOURCE" in

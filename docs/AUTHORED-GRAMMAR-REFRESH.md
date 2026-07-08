@@ -116,10 +116,12 @@ sufficient for repository dispatch on fine-grained tokens).
 
 The authored-grammar refresh workflow needs:
 
-- `DATA_REPOS_TOKEN`: can read private `aynumosir/ainu-grammar-hokkaido` and the
-  normal private data repos. A Sakhalin-only refresh can clone `mkpoli/ainu-itah` without this token, but Hokkaido/all refreshes require it.
 - `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN`: write access to the Turso reference
   store.
+
+It does not need `DATA_REPOS_TOKEN`; both authored grammar source repositories
+are public and are cloned over unauthenticated HTTPS. Keep `DATA_REPOS_TOKEN` for
+the full reference-data refresh if other private data repositories still need it.
 
 ## Why not update only one changed chapter?
 
