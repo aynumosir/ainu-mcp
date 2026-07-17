@@ -147,9 +147,9 @@ export function registerArchiveTools(server: McpServer, env: Env, props: Props):
 
   server.tool(
     "source_file_text",
-    "Fetch OCR or extracted text for one archived file revision from db.aynu.org. Use source_file_info or source_file_list to get the revision_id; when text coverage is absent, the upstream result may point to source_file_page_image alternatives.",
+    "Fetch OCR or extracted text for one archived file revision from db.aynu.org, resolving file_id to the current approved revision when revision_id is absent. When text coverage is absent, the upstream result may point to source_file_page_image alternatives.",
     {
-      file_id: z.string().optional().describe("accepted for future compatibility; pass revision_id for the current API"),
+      file_id: z.string().optional().describe("archive file id resolved to its current approved revision when revision_id is absent"),
       revision_id: z.string().optional().describe("archive revision id from source_file_list or source_file_info"),
       variant: z.string().optional().describe("text variant such as OCR or normalized text, passed through when supplied"),
       pages: z.string().optional().describe("page selector passed through to the control plane when supplied"),
@@ -160,11 +160,18 @@ export function registerArchiveTools(server: McpServer, env: Env, props: Props):
       try {
         requireOrgMember(props, "source_file_text");
         if (!revision_id) {
-          return errorResult(
-            file_id
-              ? "source_file_text failed: file_id cannot be resolved to a current revision_id from the available archive endpoints; pass revision_id from source_file_list or source_file_info."
-              : "source_file_text failed: revision_id is required.",
-          );
+          if (!file_id) return errorResult("source_file_text failed: revision_id is required.");
+          const file = (await signedArchiveJson(
+            env,
+            props.login,
+            `/api/archive/files/${encodeURIComponent(file_id)}`,
+          )) as { currentRevisionId?: unknown };
+          if (typeof file.currentRevisionId !== "string" || file.currentRevisionId.length === 0) {
+            return errorResult(
+              "source_file_text failed: file has no current (approved) revision, so there is no text to fetch.",
+            );
+          }
+          revision_id = file.currentRevisionId;
         }
         const path = pathWithQuery(`/api/archive/revisions/${encodeURIComponent(revision_id)}/text`, {
           variant,
