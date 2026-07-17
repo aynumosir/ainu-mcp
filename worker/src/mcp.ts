@@ -22,6 +22,7 @@ import { registerGlossaryReadTools, registerGlossaryWriteTools } from "./tools/g
 import { registerMorphemeTools } from "./tools/morpheme.js";
 import { registerMorphologyTools } from "./tools/morphology.js";
 import { registerSourcesTools, registerSourcesWriteTools } from "./tools/sources.js";
+import { registerArchiveTools } from "./tools/archive.js";
 import { registerLocalizationTools } from "./tools/localizations.js";
 import { registerWikiTools } from "./tools/wiki.js";
 import { registerGrammarCheckTools } from "./tools/grammar_check.js";
@@ -63,6 +64,7 @@ export class AinuMCP extends McpAgent<Env, unknown, Props> {
     if (props?.isOrgMember) {
       registerGlossaryWriteTools(this.server, env, props);
       registerSourcesWriteTools(this.server, env, props);
+      registerArchiveTools(this.server, env, props);
       registerAuditTool(this.server, env);
       registerGapsTool(this.server, env);
       registerSiteCacheTool(this.server, env, props);

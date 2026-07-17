@@ -74,7 +74,8 @@
   ],
 
   // Non-secret config. Secrets (GitHub OAuth app, Google service account,
-  // cookie key) are set via `wrangler secret put` — see worker/README.md.
+  // cookie key, SOURCES_WRITE_TOKEN, ASSERTION_KEY_MCP) are set via
+  // `wrangler secret put` — see worker/README.md.
   "vars": {
     "ALLOWED_ORG": "aynumosir",
     "ALLOWED_USERS": "",
