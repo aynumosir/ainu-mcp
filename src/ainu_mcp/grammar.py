@@ -19,6 +19,7 @@ We expose:
 from __future__ import annotations
 
 import json
+import logging
 import re
 from functools import cache
 from html import unescape
@@ -29,9 +30,11 @@ from .config import get_config
 
 _DATA_DIR = Path(__file__).resolve().parent / "data"
 _AUTHORED_GRAMMAR_SNAPSHOT = _DATA_DIR / "authored_grammar_texts.json"
-_FILENAME_RE = re.compile(r"^(?P<year>\d{4})_(?P<author>[^_]+)_(?P<title>.+)\.(pdf|md|txt)$")
+_FILENAME_RE = re.compile(r"^(?P<year>\d{4})_(?P<author>[^_]+)_(?P<title>.+)\.(pdf|epub|md|txt)$")
 _TEXT_SUFFIXES = {".md", ".txt"}
-_MATERIAL_SUFFIXES = {".pdf", ".md", ".txt"}
+_MATERIAL_SUFFIXES = {".pdf", ".epub", ".md", ".txt"}
+
+logger = logging.getLogger(__name__)
 _WRITTEN_GRAMMAR_SITES = {
     "hokkaido": {
         "repo": "ainu-grammar-hokkaido",
@@ -271,16 +274,27 @@ def _manifest_materials(root: Path) -> list[dict[str, Any]]:
     bibliography walk reads it instead of expecting the binaries on disk.
     """
     out: list[dict[str, Any]] = []
+    manifest = root / "archive-manifest.jsonl"
     try:
-        lines = (root / "archive-manifest.jsonl").read_text(encoding="utf-8")
+        lines = manifest.read_text(encoding="utf-8")
     except OSError:
+        if root.exists():
+            logger.warning(
+                "grammar: %s is missing or unreadable — archived scans will be absent from the bibliography",
+                manifest,
+            )
         return out
+    bad = 0
     for line in lines.splitlines():
         if not line.strip():
             continue
         try:
             entry = json.loads(line)
         except json.JSONDecodeError:
+            bad += 1
+            continue
+        if not isinstance(entry, dict):
+            bad += 1
             continue
         rel = str(entry.get("path") or "")
         kind = rel.split("/", 1)[0]
@@ -296,6 +310,8 @@ def _manifest_materials(root: Path) -> list[dict[str, Any]]:
         if pages:
             meta["pages"] = pages
         out.append(meta)
+    if bad:
+        logger.warning("grammar: %d unparseable line(s) skipped in %s", bad, manifest)
     return out
 
 
@@ -303,7 +319,7 @@ def _manifest_materials(root: Path) -> list[dict[str, Any]]:
 def _walk_materials() -> list[dict[str, Any]]:
     root = get_config().grammar_dir
     out: list[dict[str, Any]] = []
-    seen_paths: set[str] = set()
+    disk_by_path: dict[str, dict[str, Any]] = {}
     if root.exists():
         for kind in ("books", "articles"):
             base = root / kind
@@ -317,12 +333,17 @@ def _walk_materials() -> list[dict[str, Any]]:
                 rel = p.relative_to(root)
                 if _under_ocr_workdir(rel):
                     continue
-                out.append(_material_meta(kind, str(rel), p.name))
-                seen_paths.add(str(rel))
+                meta = _material_meta(kind, str(rel), p.name)
+                disk_by_path[str(rel)] = meta
+                out.append(meta)
         for meta in _manifest_materials(root):
-            if meta["path"] in seen_paths:
-                continue
-            out.append(meta)
+            on_disk = disk_by_path.get(meta["path"])
+            if on_disk is None:
+                out.append(meta)
+            elif "pages" in meta and "pages" not in on_disk:
+                # A checkout can hold both the binary and the manifest row —
+                # the manifest's page count still belongs on the entry.
+                on_disk["pages"] = meta["pages"]
 
     # Project-authored grammar chapters: expose their complete plain text. They
     # are not third-party PDFs/transcriptions, so include enough metadata for AI
