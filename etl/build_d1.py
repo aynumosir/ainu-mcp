@@ -193,9 +193,17 @@ class ChunkWriter:
         return self.file_index
 
 
+def _is_bible_chapter_header(row: dict[str, Any]) -> bool:
+    """Sentence #0 of every Bible chapter is the web source's navigation
+    title ("I Korintos 1"), not corpus text — the corpus API's token layer
+    excludes them the same way (ainu-corpora-api scripts/build_tokens.py)."""
+    rid = row.get("id") or ""
+    return rid.startswith("bible/") and rid.endswith("#0")
+
+
 def build_corpus() -> tuple[list[str], dict[str, Any]]:
     print("corpus: loading…")
-    rows = corpus._load()
+    rows = [r for r in corpus._load() if not _is_bible_chapter_header(r)]
     w = ChunkWriter(
         "corpus",
         "corpus_fts(text, translation, id, dialect, author, collection, document, uri)",
