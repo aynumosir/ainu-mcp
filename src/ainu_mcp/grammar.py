@@ -19,6 +19,7 @@ We expose:
 from __future__ import annotations
 
 import json
+import logging
 import re
 from functools import cache
 from html import unescape
@@ -29,9 +30,11 @@ from .config import get_config
 
 _DATA_DIR = Path(__file__).resolve().parent / "data"
 _AUTHORED_GRAMMAR_SNAPSHOT = _DATA_DIR / "authored_grammar_texts.json"
-_FILENAME_RE = re.compile(r"^(?P<year>\d{4})_(?P<author>[^_]+)_(?P<title>.+)\.(pdf|md|txt)$")
+_FILENAME_RE = re.compile(r"^(?P<year>\d{4})_(?P<author>[^_]+)_(?P<title>.+)\.(pdf|epub|md|txt)$")
 _TEXT_SUFFIXES = {".md", ".txt"}
-_MATERIAL_SUFFIXES = {".pdf", ".md", ".txt"}
+_MATERIAL_SUFFIXES = {".pdf", ".epub", ".md", ".txt"}
+
+logger = logging.getLogger(__name__)
 _WRITTEN_GRAMMAR_SITES = {
     "hokkaido": {
         "repo": "ainu-grammar-hokkaido",
@@ -247,10 +250,76 @@ def _written_plain_texts() -> list[dict[str, Any]]:
         return []
 
 
+def _material_meta(kind: str, rel: str, filename: str) -> dict[str, Any]:
+    meta: dict[str, Any] = {
+        "source": "ainu-grammar",
+        "kind": kind,
+        "path": rel,
+        "filename": filename,
+    }
+    m = _FILENAME_RE.match(filename)
+    if m:
+        meta["year"] = int(m["year"])
+        meta["author"] = m["author"]
+        meta["title"] = m["title"]
+    return meta
+
+
+def _manifest_materials(root: Path) -> list[dict[str, Any]]:
+    """Bibliography rows for scans held in the archive (R2), not in git.
+
+    The PDF/EPUB scans were moved out of the repo into the ``aynumosir-archive``
+    bucket; ``archive-manifest.jsonl`` (one JSON object per file: path, role,
+    sha256, bytes, pages, …) is what a checkout carries in their place, so the
+    bibliography walk reads it instead of expecting the binaries on disk.
+    """
+    out: list[dict[str, Any]] = []
+    manifest = root / "archive-manifest.jsonl"
+    try:
+        lines = manifest.read_text(encoding="utf-8")
+    except OSError:
+        if root.exists():
+            logger.warning(
+                "grammar: %s is missing or unreadable — archived scans will be absent from the bibliography",
+                manifest,
+            )
+        return out
+    bad = 0
+    for line in lines.splitlines():
+        if not line.strip():
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            bad += 1
+            continue
+        if not isinstance(entry, dict):
+            bad += 1
+            continue
+        rel = str(entry.get("path") or "")
+        kind = rel.split("/", 1)[0]
+        if kind not in ("books", "articles"):
+            continue
+        filename = rel.rsplit("/", 1)[-1]
+        if "." not in filename:
+            continue
+        if f".{filename.rsplit('.', 1)[-1].lower()}" not in _MATERIAL_SUFFIXES:
+            continue
+        meta = _material_meta(kind, rel, filename)
+        pages = entry.get("pages")
+        if pages:
+            meta["pages"] = pages
+        out.append(meta)
+    if bad:
+        logger.warning("grammar: %d unparseable line(s) skipped in %s", bad, manifest)
+    return out
+
+
 @cache
 def _walk_materials() -> list[dict[str, Any]]:
     root = get_config().grammar_dir
     out: list[dict[str, Any]] = []
+    disk_by_path: dict[str, dict[str, Any]] = {}
     if root.exists():
         for kind in ("books", "articles"):
             base = root / kind
@@ -264,18 +333,17 @@ def _walk_materials() -> list[dict[str, Any]]:
                 rel = p.relative_to(root)
                 if _under_ocr_workdir(rel):
                     continue
-                meta: dict[str, Any] = {
-                    "source": "ainu-grammar",
-                    "kind": kind,
-                    "path": str(rel),
-                    "filename": p.name,
-                }
-                m = _FILENAME_RE.match(p.name)
-                if m:
-                    meta["year"] = int(m["year"])
-                    meta["author"] = m["author"]
-                    meta["title"] = m["title"]
+                meta = _material_meta(kind, str(rel), p.name)
+                disk_by_path[str(rel)] = meta
                 out.append(meta)
+        for meta in _manifest_materials(root):
+            on_disk = disk_by_path.get(meta["path"])
+            if on_disk is None:
+                out.append(meta)
+            elif "pages" in meta and "pages" not in on_disk:
+                # A checkout can hold both the binary and the manifest row —
+                # the manifest's page count still belongs on the entry.
+                on_disk["pages"] = meta["pages"]
 
     # Project-authored grammar chapters: expose their complete plain text. They
     # are not third-party PDFs/transcriptions, so include enough metadata for AI
