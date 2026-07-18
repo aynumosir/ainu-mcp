@@ -247,10 +247,63 @@ def _written_plain_texts() -> list[dict[str, Any]]:
         return []
 
 
+def _material_meta(kind: str, rel: str, filename: str) -> dict[str, Any]:
+    meta: dict[str, Any] = {
+        "source": "ainu-grammar",
+        "kind": kind,
+        "path": rel,
+        "filename": filename,
+    }
+    m = _FILENAME_RE.match(filename)
+    if m:
+        meta["year"] = int(m["year"])
+        meta["author"] = m["author"]
+        meta["title"] = m["title"]
+    return meta
+
+
+def _manifest_materials(root: Path) -> list[dict[str, Any]]:
+    """Bibliography rows for scans held in the archive (R2), not in git.
+
+    The PDF/EPUB scans were moved out of the repo into the ``aynumosir-archive``
+    bucket; ``archive-manifest.jsonl`` (one JSON object per file: path, role,
+    sha256, bytes, pages, …) is what a checkout carries in their place, so the
+    bibliography walk reads it instead of expecting the binaries on disk.
+    """
+    out: list[dict[str, Any]] = []
+    try:
+        lines = (root / "archive-manifest.jsonl").read_text(encoding="utf-8")
+    except OSError:
+        return out
+    for line in lines.splitlines():
+        if not line.strip():
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        rel = str(entry.get("path") or "")
+        kind = rel.split("/", 1)[0]
+        if kind not in ("books", "articles"):
+            continue
+        filename = rel.rsplit("/", 1)[-1]
+        if "." not in filename:
+            continue
+        if f".{filename.rsplit('.', 1)[-1].lower()}" not in _MATERIAL_SUFFIXES:
+            continue
+        meta = _material_meta(kind, rel, filename)
+        pages = entry.get("pages")
+        if pages:
+            meta["pages"] = pages
+        out.append(meta)
+    return out
+
+
 @cache
 def _walk_materials() -> list[dict[str, Any]]:
     root = get_config().grammar_dir
     out: list[dict[str, Any]] = []
+    seen_paths: set[str] = set()
     if root.exists():
         for kind in ("books", "articles"):
             base = root / kind
@@ -264,18 +317,12 @@ def _walk_materials() -> list[dict[str, Any]]:
                 rel = p.relative_to(root)
                 if _under_ocr_workdir(rel):
                     continue
-                meta: dict[str, Any] = {
-                    "source": "ainu-grammar",
-                    "kind": kind,
-                    "path": str(rel),
-                    "filename": p.name,
-                }
-                m = _FILENAME_RE.match(p.name)
-                if m:
-                    meta["year"] = int(m["year"])
-                    meta["author"] = m["author"]
-                    meta["title"] = m["title"]
-                out.append(meta)
+                out.append(_material_meta(kind, str(rel), p.name))
+                seen_paths.add(str(rel))
+        for meta in _manifest_materials(root):
+            if meta["path"] in seen_paths:
+                continue
+            out.append(meta)
 
     # Project-authored grammar chapters: expose their complete plain text. They
     # are not third-party PDFs/transcriptions, so include enough metadata for AI
