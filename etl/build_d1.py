@@ -253,7 +253,7 @@ def build_dictionaries() -> tuple[list[str], dict[str, int]]:
             # Preserve original key order — JS Object.keys() reorders integer-like
             # keys, which would corrupt `matched_in` for dicts with numeric headers.
             field_order = json.dumps(list(fields.keys()), ensure_ascii=False)
-            lemma_lower = (lemma or "").strip().lower() if isinstance(lemma, str) else None
+            lemma_lower = dictionaries.dictionary_lemma(name, e).lower() if isinstance(lemma, str) else None
             row = [next_id, name, e.get("_file"), lemma, lemma_lower, e.get("definition", ""), fields_json, field_order, all_text]
 
             # If the row would exceed the per-statement cap (rare — a few

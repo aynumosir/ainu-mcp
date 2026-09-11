@@ -77,7 +77,7 @@ def _dict_lemma_index() -> dict[str, set[str]]:
     for name in dictionaries._list_dicts():
         s: set[str] = set()
         for e in dictionaries._load_dict(name):
-            le = (e.get("lemma") or "").strip().lower()
+            le = dictionaries.dictionary_lemma(name, e).lower()
             if le:
                 s.add(_normalize(le))
         out[name] = s
