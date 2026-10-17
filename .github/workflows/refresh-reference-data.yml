@@ -39,7 +39,7 @@ jobs:
       AINU_ROOT: ${{ github.workspace }}/_data
     steps:
       - name: Checkout ainu-mcp
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Clone private data repos
         env:
@@ -71,7 +71,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo + builder target
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -81,7 +81,7 @@ jobs:
 
       - name: Build corpus data.jsonl
         working-directory: ${{ env.AINU_ROOT }}/ainu-corpora/builder
-        run: cargo run --release -- ../texts > ../data.jsonl
+        run: cargo run --release -- --format jsonl ../texts > ../data.jsonl
 
       - name: Set up uv (Python ETL)
         uses: astral-sh/setup-uv@v5

@@ -21,6 +21,7 @@ export interface Env {
   MDB: Fetcher; // ainu-mdb — morpheme/lexeme explorer + decompose API (mdb.aynu.org)
   SOURCES: Fetcher; // ainu-sources — textual sources database (db.aynu.org)
   CORPUS: Fetcher; // ainu-corpora-api — corpus search/freq/concordance/POS (corpus.aynu.org)
+  RECORDS: Fetcher; // ainu-records — early records, transcriptions + wordlist items (rec.aynu.org)
 
   // Plain vars
   ALLOWED_ORG: string; // GitHub org whose members get write/maintenance tools

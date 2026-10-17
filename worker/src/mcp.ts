@@ -25,6 +25,7 @@ import { registerSourcesTools, registerSourcesWriteTools } from "./tools/sources
 import { registerArchiveTools } from "./tools/archive.js";
 import { registerLocalizationTools } from "./tools/localizations.js";
 import { registerWikiTools } from "./tools/wiki.js";
+import { registerRecordsTools } from "./tools/records.js";
 import { registerGrammarCheckTools } from "./tools/grammar_check.js";
 import { registerAuditTool } from "./tools/audit.js";
 import { registerGapsTool } from "./tools/gaps.js";
@@ -57,6 +58,7 @@ export class AinuMCP extends McpAgent<Env, unknown, Props> {
     registerSourcesTools(this.server, env);
     registerLocalizationTools(this.server, env);
     registerWikiTools(this.server);
+    registerRecordsTools(this.server, env);
     registerGrammarCheckTools(this.server, env);
 
     // ── Write + maintenance surface — aynumosir org members only ──

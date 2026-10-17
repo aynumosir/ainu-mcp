@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import get_config
+from .headwords import dictionary_lemma
 
 # Some dictionary entries (e.g. Compilation_Ainu-Dialect-Database) have huge
 # concatenated fields; the default 128KB csv field limit truncates with an
@@ -158,7 +159,7 @@ def reverse_lookup(
             le = (e.get("lemma") or "").strip().lower()
             if not le:
                 continue
-            if le == q:
+            if le == q or dictionary_lemma(name, e).lower() == q:
                 exact.append(
                     {
                         "dictionary": name,

@@ -193,9 +193,17 @@ class ChunkWriter:
         return self.file_index
 
 
+def _is_bible_chapter_header(row: dict[str, Any]) -> bool:
+    """Sentence #0 of every Bible chapter is the web source's navigation
+    title ("I Korintos 1"), not corpus text — the corpus API's token layer
+    excludes them the same way (ainu-corpora-api scripts/build_tokens.py)."""
+    rid = row.get("id") or ""
+    return rid.startswith("bible/") and rid.endswith("#0")
+
+
 def build_corpus() -> tuple[list[str], dict[str, Any]]:
     print("corpus: loading…")
-    rows = corpus._load()
+    rows = [r for r in corpus._load() if not _is_bible_chapter_header(r)]
     w = ChunkWriter(
         "corpus",
         "corpus_fts(text, translation, id, dialect, author, collection, document, uri)",
@@ -245,7 +253,7 @@ def build_dictionaries() -> tuple[list[str], dict[str, int]]:
             # Preserve original key order — JS Object.keys() reorders integer-like
             # keys, which would corrupt `matched_in` for dicts with numeric headers.
             field_order = json.dumps(list(fields.keys()), ensure_ascii=False)
-            lemma_lower = (lemma or "").strip().lower() if isinstance(lemma, str) else None
+            lemma_lower = dictionaries.dictionary_lemma(name, e).lower() if isinstance(lemma, str) else None
             row = [next_id, name, e.get("_file"), lemma, lemma_lower, e.get("definition", ""), fields_json, field_order, all_text]
 
             # If the row would exceed the per-statement cap (rare — a few

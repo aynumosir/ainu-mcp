@@ -124,17 +124,27 @@ export async function dictReverseLookup(
   const order = dictOrderClause(dicts);
   const orderParams = dicts ?? [];
 
-  const exactSql = `SELECT ${DICT_COLS} FROM dict_entries d WHERE d.lemma_lower = ?${dictFilter} ORDER BY ${order} LIMIT ?`;
-  const exact = (await db.prepare(exactSql).bind(q, ...(dicts ?? []), ...orderParams, limit).all<DictEntryRow>()).results ?? [];
+  // lemma_lower stores the lexical headword; lemma retains the printed heading.
+  // A caller can still ask for Nakagawa's complete notation, e.g. rur, -i.
+  const printed = /[,，、]/.test(q);
+  const exactMatch = printed
+    ? "(d.lemma_lower = ? OR (d.dictionary = '1995_Nakagawa_Ainu-Chitose-Dialect-Dictionary' AND lower(trim(d.lemma)) = ?))"
+    : "d.lemma_lower = ?";
+  const exactParams = printed ? [q, q] : [q];
+  const exactSql = `SELECT ${DICT_COLS} FROM dict_entries d WHERE ${exactMatch}${dictFilter} ORDER BY ${order} LIMIT ?`;
+  const exact = (await db.prepare(exactSql).bind(...exactParams, ...(dicts ?? []), ...orderParams, limit).all<DictEntryRow>()).results ?? [];
 
   let substr: DictEntryRow[] = [];
   if (q.length >= 3) {
     const sql = `SELECT ${DICT_COLS} FROM dict_fts f JOIN dict_entries d ON d.id = f.rowid
-                 WHERE dict_fts MATCH ?${dictFilter} AND d.lemma_lower <> ? ORDER BY ${order} LIMIT ?`;
-    substr = (await db.prepare(sql).bind(`lemma : ${ftsPhrase(q)}`, ...(dicts ?? []), q, ...orderParams, limit).all<DictEntryRow>()).results ?? [];
+                 WHERE dict_fts MATCH ?${dictFilter} AND NOT (${exactMatch}) ORDER BY ${order} LIMIT ?`;
+    substr = (await db.prepare(sql).bind(`lemma : ${ftsPhrase(q)}`, ...(dicts ?? []), ...exactParams, ...orderParams, limit).all<DictEntryRow>()).results ?? [];
   } else {
-    const sql = `SELECT ${DICT_COLS} FROM dict_entries d WHERE d.lemma_lower LIKE ? ESCAPE '\\' AND d.lemma_lower <> ?${dictFilter} ORDER BY ${order} LIMIT ?`;
-    substr = (await db.prepare(sql).bind(likePattern(q), q, ...(dicts ?? []), ...orderParams, limit).all<DictEntryRow>()).results ?? [];
+    const sql = `SELECT ${DICT_COLS} FROM dict_entries d
+                 WHERE (d.lemma_lower LIKE ? ESCAPE '\\' OR
+                   (d.dictionary = '1995_Nakagawa_Ainu-Chitose-Dialect-Dictionary' AND lower(d.lemma) LIKE ? ESCAPE '\\'))
+                 AND NOT (${exactMatch})${dictFilter} ORDER BY ${order} LIMIT ?`;
+    substr = (await db.prepare(sql).bind(likePattern(q), likePattern(q), ...exactParams, ...(dicts ?? []), ...orderParams, limit).all<DictEntryRow>()).results ?? [];
   }
   return { exact, substr };
 }

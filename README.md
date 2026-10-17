@@ -176,6 +176,22 @@ and the [Ainu Wikipedia in the Wikimedia Incubator](https://incubator.wikimedia.
 | `wiki_search(query, site?, limit?)` | Search articles; `site`: `aynuwiki`, `incubator`, or `both` (default) |
 | `wiki_get_page(title, site?)` | Full article text (clean plain-text extract, or raw wikitext for template-heavy pages) |
 
+### Early records (rec.aynu.org)
+
+The [Early Records Database of the Ainu Language](https://rec.aynu.org) — the
+crowd transcriptions made on [みんなで翻刻](https://app.honkoku.org/projects/ainu)
+of Ainu-language records written between the seventeenth and nineteenth
+centuries, with the wordlists parsed into items and an editorial layer giving
+each item a modern reading, a certainty and a citation. That app owns the data
+and the queries; these tools call its read API (`rec.aynu.org/api`) over the
+`env.RECORDS` service binding and render the transcription markup as text.
+
+| Tool | Purpose |
+| --- | --- |
+| `records_search(query?, source?, unit?, section?, certainty?, interpreted?, limit?, offset?)` | Search wordlist items — `query` matches the transcribed kana form, its alternatives, the modern reading (latin or kana), the Japanese gloss and the remark, ranked exact before prefix before substring; `unit` needs its `source`, since units of different works share slugs; `interpreted=false` finds items still without a modern reading |
+| `records_list_sources` | The records, their units (witness or volume), holding institutions, page/item counts, section headings and TEI downloads |
+| `records_get_page(source, unit, page, include_items?)` | One page: the diplomatic transcription line by line as text and as markup, the leaf's own description and the transcribers' notes, the facsimile image, and the page's parsed items |
+
 ### Script conversion
 
 | Tool | Purpose |

@@ -51,3 +51,4 @@ jobs:
       # Byte-compile the ETL + loaders (catches syntax errors) without needing
       # AINU_ROOT data or network.
       - run: uv run python -m compileall -q src etl
+      - run: uv run python -m unittest discover -s tests
