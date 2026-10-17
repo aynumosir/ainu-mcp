@@ -238,48 +238,4 @@ export function registerArchiveTools(server: McpServer, env: Env, props: Props):
       }
     },
   );
-
-  server.tool(
-    "source_file_get",
-    "Request a rights-gated one-time file capability for an archived revision from db.aynu.org. This is for rare direct-file access; use source_file_text and source_file_page_image for ordinary review work.",
-    {
-      revision_id: z.string(),
-    },
-    async ({ revision_id }) => {
-      try {
-        requireOrgMember(props, "source_file_get");
-        const info = (await signedArchiveJson(
-          env,
-          props.login,
-          `/api/archive/revisions/${encodeURIComponent(revision_id)}`,
-        )) as { bytes?: unknown; originalFilename?: unknown };
-        let capability: { expiresAt?: unknown };
-        try {
-          capability = (await signedArchiveJson(
-            env,
-            props.login,
-            `/api/archive/revisions/${encodeURIComponent(revision_id)}/capabilities`,
-            {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({}),
-            },
-          )) as { expiresAt?: unknown };
-        } catch (e) {
-          return errorResult(
-            `source_file_get failed: ${(e as Error).message}. Try source_file_text or source_file_page_image when direct file access is not available.`,
-          );
-        }
-        return jsonResult({
-          expires_at: capability.expiresAt,
-          bytes: info.bytes,
-          filename: info.originalFilename,
-          redemption_instructions:
-            "Redeem the one-time capability through GET /api/archive/capabilities/:jti/content before expires_at. Capability secrets are not exposed through MCP.",
-        });
-      } catch (e) {
-        return errorResult(`source_file_get failed: ${(e as Error).message}`);
-      }
-    },
-  );
 }
