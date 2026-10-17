@@ -103,7 +103,7 @@ export function registerArchiveTools(server: McpServer, env: Env, props: Props):
     {
       source_slug: z.string().optional().describe("source slug from sources_search or source_get"),
       role: z.string().optional().describe("archive file role, passed through when supplied"),
-      cursor: z.string().optional().describe("pagination cursor returned by a previous archive listing"),
+      cursor: z.string().optional().describe("pagination cursor from a previous catalogue listing; the per-source listing is not paginated and ignores it"),
       include_history: z.boolean().default(false).describe("include non-current revision history when the control plane supports it"),
     },
     async ({ source_slug, role, cursor, include_history }) => {
@@ -111,7 +111,6 @@ export function registerArchiveTools(server: McpServer, env: Env, props: Props):
         requireOrgMember(props, "source_file_list");
         const path = source_slug
           ? pathWithQuery(`/api/archive/sources/${encodeURIComponent(source_slug)}/files`, {
-              cursor,
               role,
               include_history,
             })
@@ -154,9 +153,8 @@ export function registerArchiveTools(server: McpServer, env: Env, props: Props):
       variant: z.string().optional().describe("text variant such as OCR or normalized text, passed through when supplied"),
       pages: z.string().optional().describe("page selector passed through to the control plane when supplied"),
       cursor: z.string().optional().describe("pagination cursor returned by a previous text response"),
-      max_chars: z.number().int().positive().optional().describe("maximum text characters requested from the control plane"),
     },
-    async ({ file_id, revision_id, variant, pages, cursor, max_chars }) => {
+    async ({ file_id, revision_id, variant, pages, cursor }) => {
       try {
         requireOrgMember(props, "source_file_text");
         if (!revision_id) {
@@ -177,7 +175,6 @@ export function registerArchiveTools(server: McpServer, env: Env, props: Props):
           variant,
           pages,
           cursor,
-          max_chars,
         });
         const data = await signedArchiveJson(env, props.login, path);
         return jsonResult(data);
