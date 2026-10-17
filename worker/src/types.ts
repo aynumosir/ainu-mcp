@@ -39,6 +39,8 @@ export interface Env {
   // Must match `SOURCES_WRITE_TOKEN` on the ainu-sources Worker. Gates the
   // source_add / source_update tools' service-binding calls.
   SOURCES_WRITE_TOKEN: string;
+  // Shared HMAC secret for archive actor assertions; must match `AssertionKeys.mcp` on ainu-sources.
+  ASSERTION_KEY_MCP: string;
   // Turso (libSQL) connection for the reference store (replaces the D1 binding).
   DATABASE_URL: string; // libsql://ainu-mcp-…turso.io
   DATABASE_AUTH_TOKEN: string;
